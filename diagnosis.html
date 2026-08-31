@@ -1,0 +1,2331 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>牙科診斷書產生器</title>
+  <style>
+    /* ═══════════════════════════════════════════
+       TOKENS
+       ═══════════════════════════════════════════ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      /* ── 核心色：就診・手術・部位 ── */
+      --primary:       #1a6b8a;
+      --primary-mid:   #2b8ba8;
+      --primary-dark:  #124e67;
+      --primary-light: #e9f4f8;
+      --primary-soft:  #b9d8e4;
+
+      /* ── 語意色：一項概念一個色相 ── */
+      --accent:        #2a9d8f;   --accent-light: #e6f6f3;   /* 術式・拆線・新增 */
+      --img:           #7b5ea7;   --img-light:    #f3eefb;   /* 影像檢查 */
+      --adm:           #9a6b12;   --adm-light:    #fdf4e3;   /* 住院・出院 */
+      --patho:         #5f7d3e;   --patho-light:  #eff5e5;   /* 病理報告 */
+      --danger:        #b84040;   --danger-light: #fdf0ee;
+
+      /* 智齒標記：低彩度暖灰，只作辨識、不與語意色競爭 */
+      --wisdom:        #9d7a5c;
+      --wisdom-soft:   #e6ddd4;
+      --wisdom-bg:     #fdfaf7;
+
+      --border:        #dbe7ec;
+      --border-soft:   #eaf2f5;
+      --text:          #1b2a32;
+      --text-muted:    #5a7a87;
+      --text-faint:    #85a0ab;
+      --bg:            #eef5f8;
+      --card:          #ffffff;
+
+      --radius:        10px;
+      --radius-sm:     6px;
+      --shadow:        0 1px 2px rgba(20,70,90,0.05), 0 10px 26px -14px rgba(20,70,90,0.30);
+      --t:             0.14s ease;
+
+      --grad-head:     linear-gradient(110deg, #0d4053 0%, #14607c 34%, #23768f 58%, #4a628f 100%);
+    }
+
+    body {
+      font-family: 'Microsoft JhengHei', 'PingFang TC', 'Noto Sans TC', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ═══════════════════════════════════════════
+       HEADER
+       ═══════════════════════════════════════════ */
+    header {
+      background: var(--grad-head);
+      color: #fff;
+      padding: 0 28px;
+      min-height: 70px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      flex-wrap: wrap;
+      box-shadow: 0 6px 22px -12px rgba(13,64,83,0.75);
+      position: relative;
+    }
+    header::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(120% 180% at 8% -40%, rgba(255,255,255,0.16), transparent 60%);
+      pointer-events: none;
+    }
+    header::after {
+      content: '';
+      position: absolute; left: 0; right: 0; bottom: 0;
+      height: 1px;
+      background: linear-gradient(90deg, rgba(255,255,255,0.30), rgba(255,255,255,0.10));
+    }
+    header > * { position: relative; }
+
+    .brand { display: flex; align-items: center; gap: 13px; padding: 14px 0; }
+    .brand-mark {
+      width: 38px; height: 38px;
+      border-radius: 11px;
+      background: #fff;
+      color: var(--primary);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      box-shadow: 0 2px 8px -2px rgba(0,0,0,0.32);
+    }
+    .brand-mark svg { width: 21px; height: 21px; }
+    .brand h1 { font-size: 1.16rem; font-weight: 700; letter-spacing: 0.01em; line-height: 1.25; }
+    .brand p  { font-size: 0.71rem; opacity: 0.74; margin-top: 3px; letter-spacing: 0.02em; }
+
+    .head-nav { display: flex; gap: 6px; padding: 0 0 13px; }
+    @media (min-width: 620px) { .head-nav { padding: 0; } }
+    .nav-btn {
+      padding: 7px 16px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.28);
+      background: rgba(255,255,255,0.08);
+      color: rgba(255,255,255,0.88);
+      font-size: 0.82rem;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all var(--t);
+      white-space: nowrap;
+    }
+    .nav-btn:hover  { background: rgba(255,255,255,0.18); color: #fff; }
+    .nav-btn.active { background: #fff; color: var(--primary-dark); border-color: #fff; }
+
+    /* ═══════════════════════════════════════════
+       LAYOUT
+       ═══════════════════════════════════════════ */
+    .layout {
+      display: grid;
+      grid-template-columns: 545px 1fr;
+      gap: 20px;
+      max-width: 1360px;
+      margin: 24px auto;
+      padding: 0 20px 48px;
+      align-items: start;
+    }
+    @media (max-width: 1000px) { .layout { grid-template-columns: 1fr; } }
+
+    .col { display: flex; flex-direction: column; gap: 16px; }
+
+    .page-narrow { max-width: 860px; margin: 24px auto; padding: 0 20px 48px; }
+
+    /* ═══════════════════════════════════════════
+       CARD
+       ═══════════════════════════════════════════ */
+    .card {
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+    .card-title {
+      font-size: 0.73rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      color: var(--primary);
+      padding: 11px 18px;
+      border-bottom: 1px solid var(--border);
+      background: #f6fafc;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      box-shadow: inset 3px 0 0 currentColor;
+    }
+    .card-title.t-img { color: var(--img); background: #faf7fe; }
+    .card-meta { font-weight: 600; letter-spacing: 0; color: var(--text-muted); }
+
+    /* ═══════════════════════════════════════════
+       CONTROLS
+       ═══════════════════════════════════════════ */
+    select,
+    input[type="date"],
+    input[type="text"] {
+      width: 100%;
+      padding: 7px 10px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 0.84rem;
+      color: var(--text);
+      background: #fafcfd;
+      font-family: inherit;
+      outline: none;
+      appearance: none;
+      -webkit-appearance: none;
+      transition: border-color var(--t), box-shadow var(--t);
+    }
+    select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%235a7a87' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 9px center;
+      padding-right: 26px;
+      cursor: pointer;
+    }
+    select:focus, input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(26,107,138,0.10);
+    }
+
+    .chip {
+      padding: 4px 11px;
+      border-radius: 20px;
+      font-size: 0.76rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1.5px solid var(--border);
+      background: #fafcfd;
+      color: var(--text-muted);
+      font-family: inherit;
+      transition: all var(--t);
+    }
+    .chip:hover     { border-color: var(--primary); color: var(--primary); background: var(--primary-light); }
+    .chip.red       { border-color: #f0c0b8; color: var(--danger); }
+    .chip.red:hover { background: var(--danger-light); border-color: var(--danger); color: var(--danger); }
+    .chip.soft      { border-color: #cfe0d9; color: var(--accent); border-style: dashed; }
+    .chip.soft:hover{ background: var(--accent-light); border-color: var(--accent); color: var(--accent); }
+    .chip.tiny      { padding: 3px 8px; font-size: 0.72rem; }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 9px 18px; border-radius: 7px;
+      font-size: 0.85rem; font-weight: 600; font-family: inherit;
+      cursor: pointer; border: none; transition: all var(--t);
+    }
+    .btn svg     { width: 15px; height: 15px; }
+    .btn-p       { background: var(--primary); color: #fff; }
+    .btn-p:hover { background: var(--primary-dark); }
+    .btn-o       { background: transparent; color: var(--primary); border: 1.5px solid var(--primary); }
+    .btn-o:hover { background: var(--primary-light); }
+
+    .add-row { padding: 11px 18px; border-top: 1px solid var(--border); background: #fcfdfe; }
+    .add-btn {
+      width: 100%;
+      padding: 8px;
+      border-radius: 7px;
+      border: 1.5px dashed var(--accent);
+      background: var(--accent-light);
+      color: var(--accent);
+      font-size: 0.83rem;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all var(--t);
+    }
+    .add-btn:hover { filter: brightness(0.96); }
+    .add-btn.b-img { border-color: var(--img); color: var(--img); background: var(--img-light); }
+
+    /* ── 開啟右側面板的欄位按鈕（取代下拉選單） ── */
+    .picker-btn {
+      width: 100%;
+      text-align: left;
+      padding: 7px 28px 7px 10px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: #fafcfd;
+      font-family: inherit;
+      font-size: 0.84rem;
+      color: var(--text);
+      cursor: pointer;
+      position: relative;
+      transition: all var(--t);
+      line-height: 1.4;
+      min-height: 34px;
+    }
+    .picker-btn:hover { border-color: var(--primary-soft); background: var(--primary-light); }
+    .picker-btn.empty { color: var(--text-faint); }
+    .picker-btn.open  { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(26,107,138,0.12); background: #fff; }
+    .picker-btn::after {
+      content: '';
+      position: absolute; right: 11px; top: 50%;
+      width: 6px; height: 6px;
+      border-top: 1.5px solid var(--text-faint);
+      border-right: 1.5px solid var(--text-faint);
+      transform: translateY(-50%) rotate(45deg);
+      transition: border-color var(--t);
+    }
+    .picker-btn:hover::after, .picker-btn.open::after { border-color: var(--primary); }
+    .picker-btn .code {
+      font-size: 0.7rem; font-weight: 700; color: var(--text-faint);
+      margin-right: 5px;
+    }
+
+    /* ═══════════════════════════════════════════
+       SIDE PANEL（診斷／術式／部位選取）
+       ═══════════════════════════════════════════ */
+    /* 透明遮罩：僅用於承接「點擊面板外關閉」 */
+    .panel-scrim { position: fixed; inset: 0; z-index: 60; background: transparent; }
+
+    /* 錨定式浮層：自被點擊的欄位向外展開 */
+    .side-panel {
+      position: fixed;
+      z-index: 61;
+      width: 380px;
+      max-height: min(64vh, 560px);
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: 0 20px 46px -20px rgba(13,64,83,0.42), 0 2px 10px rgba(13,64,83,0.09);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      --oy: 50%;                       /* 動畫收束點（對齊觸發欄位的垂直位置） */
+      will-change: clip-path, transform;
+      animation: genieL 0.36s cubic-bezier(0.22, 0.68, 0.28, 1) both;
+    }
+    .side-panel.from-right { animation-name: genieR; }
+    .side-panel.closing    { animation: genieLOut 0.24s cubic-bezier(0.5, 0, 0.75, 0.4) both; }
+    .side-panel.closing.from-right { animation-name: genieROut; }
+
+    /* macOS 精靈效果：先自錨點抽出細頸，再向外攤開
+       多邊形頂點順序固定為 左上→右上→右下→左下，才能正確補間 */
+    @keyframes genieL {
+      0% {
+        opacity: 0; transform: translateX(-14px);
+        clip-path: polygon(0 calc(var(--oy) - 1%), 0 calc(var(--oy) - 1%), 0 calc(var(--oy) + 1%), 0 calc(var(--oy) + 1%));
+      }
+      16% {
+        opacity: 1; transform: translateX(-6px);
+        clip-path: polygon(0 calc(var(--oy) - 2%), 12% calc(var(--oy) - 7%), 12% calc(var(--oy) + 7%), 0 calc(var(--oy) + 2%));
+      }
+      52% {
+        opacity: 1; transform: none;
+        clip-path: polygon(0 calc(var(--oy) - 7%), 74% -6%, 74% 106%, 0 calc(var(--oy) + 7%));
+      }
+      100% {
+        opacity: 1; transform: none;
+        clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+      }
+    }
+    @keyframes genieLOut {
+      0%   { opacity: 1; clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); }
+      55%  { opacity: 1; clip-path: polygon(0 calc(var(--oy) - 6%), 46% -4%, 46% 104%, 0 calc(var(--oy) + 6%)); }
+      100% { opacity: 0; transform: translateX(-10px);
+             clip-path: polygon(0 calc(var(--oy) - 1%), 0 calc(var(--oy) - 1%), 0 calc(var(--oy) + 1%), 0 calc(var(--oy) + 1%)); }
+    }
+    @keyframes genieR {
+      0% {
+        opacity: 0; transform: translateX(14px);
+        clip-path: polygon(100% calc(var(--oy) - 1%), 100% calc(var(--oy) - 1%), 100% calc(var(--oy) + 1%), 100% calc(var(--oy) + 1%));
+      }
+      16% {
+        opacity: 1; transform: translateX(6px);
+        clip-path: polygon(88% calc(var(--oy) - 7%), 100% calc(var(--oy) - 2%), 100% calc(var(--oy) + 2%), 88% calc(var(--oy) + 7%));
+      }
+      52% {
+        opacity: 1; transform: none;
+        clip-path: polygon(26% -6%, 100% calc(var(--oy) - 7%), 100% calc(var(--oy) + 7%), 26% 106%);
+      }
+      100% {
+        opacity: 1; transform: none;
+        clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+      }
+    }
+    @keyframes genieROut {
+      0%   { opacity: 1; clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); }
+      55%  { opacity: 1; clip-path: polygon(54% -4%, 100% calc(var(--oy) - 6%), 100% calc(var(--oy) + 6%), 54% 104%); }
+      100% { opacity: 0; transform: translateX(10px);
+             clip-path: polygon(100% calc(var(--oy) - 1%), 100% calc(var(--oy) - 1%), 100% calc(var(--oy) + 1%), 100% calc(var(--oy) + 1%)); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .side-panel, .side-panel.closing { animation-duration: 0.01ms; }
+    }
+
+    .panel-cats {
+      display: flex; gap: 6px; flex-wrap: wrap; align-items: center;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      background: #f6fafc;
+      flex-shrink: 0;
+    }
+    .panel-x {
+      margin-left: auto;
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-faint);
+      width: 24px; height: 24px;
+      border-radius: 6px;
+      font-size: 0.78rem;
+      cursor: pointer;
+      font-family: inherit;
+      flex-shrink: 0;
+      transition: all var(--t);
+    }
+    .panel-x:hover { background: #fff; color: var(--text-muted); border-color: var(--text-faint); }
+    .cat-chip {
+      padding: 4px 11px;
+      border-radius: 16px;
+      border: 1.5px solid var(--border);
+      background: #fff;
+      color: var(--text-muted);
+      font-size: 0.74rem;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all var(--t);
+    }
+    .cat-chip:hover  { border-color: var(--primary-soft); color: var(--primary); background: #f2f9fc; }
+    .cat-chip.on {
+      background: var(--primary-light);
+      border-color: var(--primary);
+      color: var(--primary-dark);
+      font-weight: 700;
+    }
+
+    .panel-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px 14px 30px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .cat-sec-title {
+      display: flex; align-items: center; gap: 9px;
+      font-size: 0.69rem; font-weight: 700; letter-spacing: 0.1em;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+    .cat-sec-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+    .pick-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 7px;
+    }
+    .pick-card {
+      text-align: left;
+      padding: 9px 11px;
+      border-radius: 8px;
+      border: 1.5px solid var(--border);
+      background: #fff;
+      font-family: inherit;
+      font-size: 0.83rem;
+      font-weight: 600;
+      color: var(--text);
+      cursor: pointer;
+      transition: all var(--t);
+      line-height: 1.4;
+      box-shadow: 0 1px 1.5px rgba(20,70,90,0.05);
+    }
+    .pick-card:hover {
+      border-color: var(--primary-soft);
+      background: #f2f9fc;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 9px -5px rgba(26,107,138,0.35);
+    }
+    .pick-card.on {
+      background: var(--primary-light);
+      border-color: var(--primary);
+      color: var(--primary-dark);
+      font-weight: 700;
+    }
+    .pick-card .code {
+      display: block;
+      font-size: 0.67rem;
+      font-weight: 700;
+      color: var(--text-faint);
+      letter-spacing: 0.04em;
+      margin-bottom: 2px;
+    }
+    .pick-card.on .code { color: var(--primary); }
+    .pick-card.clear { border-style: dashed; color: var(--text-muted); font-weight: 600; }
+
+    /* 部位組合器 */
+    .dir-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 9px; }
+    .dir-chip {
+      padding: 5px 13px;
+      border-radius: 16px;
+      border: 1.5px solid var(--border);
+      background: #fff;
+      color: var(--text-muted);
+      font-size: 0.8rem; font-weight: 700; font-family: inherit;
+      cursor: pointer; transition: all var(--t);
+    }
+    .dir-chip:hover { border-color: #a9d6cd; color: var(--accent); background: #f2fbf9; }
+    .dir-chip.on    { background: var(--accent-light); border-color: var(--accent); color: var(--accent); }
+    .dir-preview {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      background: var(--accent-light);
+      border: 1px solid #cfe8e2;
+      border-radius: 7px;
+      padding: 8px 11px;
+      margin-bottom: 4px;
+    }
+    .dir-preview b { color: var(--accent); font-size: 0.9rem; }
+
+    /* ═══════════════════════════════════════════
+       FORM
+       ═══════════════════════════════════════════ */
+    .form-body { padding: 15px 18px; display: flex; flex-direction: column; gap: 13px; }
+    .fg { display: flex; flex-direction: column; gap: 5px; }
+    .fl { font-size: 0.78rem; font-weight: 600; color: var(--text-muted); }
+    .fl .req  { color: #e05050; }
+    .fl .hint { font-weight: 500; color: var(--accent); margin-left: 4px; }
+    hr.div { border: none; border-top: 1px solid var(--border); margin: 1px 0; }
+
+    .radio-group { display: flex; flex-direction: column; gap: 5px; }
+    .ri {
+      display: flex; align-items: center; gap: 8px;
+      cursor: pointer;
+      padding: 7px 10px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 0.84rem;
+      transition: all var(--t);
+    }
+    .ri:hover  { border-color: var(--primary); background: var(--primary-light); }
+    .ri.sel    { border-color: var(--primary); background: var(--primary-light); color: var(--primary-dark); font-weight: 600; }
+    .ri input  { accent-color: var(--primary); }
+    .ri.adm.sel   { border-color: var(--adm); background: var(--adm-light); color: var(--adm); }
+    .ri.adm input { accent-color: var(--adm); }
+
+    .cw      { display: none; margin-top: 5px; }
+    .cw.show { display: block; }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+    /* ═══════════════════════════════════════════
+       TABS（多次手術）
+       ═══════════════════════════════════════════ */
+    .tabs {
+      display: flex; gap: 6px; flex-wrap: wrap;
+      padding: 10px 14px;
+      background: #f7fbfd;
+      border-bottom: 1px solid var(--border);
+    }
+    .tab {
+      display: inline-flex; align-items: baseline; gap: 6px;
+      padding: 5px 12px;
+      border-radius: 18px;
+      border: 1.5px solid var(--border);
+      background: #fff;
+      color: var(--text-muted);
+      font-size: 0.8rem; font-weight: 600; font-family: inherit;
+      cursor: pointer; transition: all var(--t);
+    }
+    .tab:hover { border-color: var(--primary-soft); color: var(--primary); background: #f2f9fc; }
+    .tab.active {
+      background: var(--primary-light);
+      border-color: var(--primary);
+      color: var(--primary-dark);
+      font-weight: 700;
+    }
+    .tab .tab-sub { font-size: 0.68rem; opacity: 0.72; font-weight: 500; }
+    .tab-add {
+      border-style: dashed; border-color: var(--accent);
+      color: var(--accent); background: var(--accent-light);
+    }
+    .tab-add:hover { border-color: var(--accent); color: var(--accent); filter: brightness(0.96); }
+
+    /* ═══════════════════════════════════════════
+       DENTAL CHART
+       ═══════════════════════════════════════════ */
+    .chart-wrap { padding: 15px 16px 8px; overflow-x: auto; }
+    .chart-tray {
+      background: linear-gradient(180deg, #f8fbfd, #f1f7fa);
+      border: 1px solid var(--border-soft);
+      border-radius: 12px;
+      padding: 11px 12px 9px;
+      min-width: max-content;
+    }
+    .chart-dirs {
+      display: flex; justify-content: space-between;
+      font-size: 0.67rem; font-weight: 700;
+      color: var(--text-faint);
+      letter-spacing: 0.08em;
+      margin-bottom: 7px;
+      padding: 0 2px;
+    }
+    .jaw-lbl {
+      font-size: 0.68rem; font-weight: 600;
+      color: var(--text-faint);
+      letter-spacing: 0.06em;
+      padding: 3px 2px;
+    }
+    .teeth-row { display: flex; align-items: stretch; gap: 3px; min-width: max-content; }
+
+    .tooth-btn {
+      width: 28px; min-height: 44px;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 1px;
+      border: 1.5px solid var(--border);
+      border-radius: 7px;
+      background: #fff;
+      cursor: pointer;
+      font-size: 0.7rem; font-weight: 700;
+      color: #7b95a1;
+      line-height: 1.2;
+      transition: all var(--t);
+      padding: 2px 0;
+      position: relative;
+      box-shadow: 0 1px 1.5px rgba(20,70,90,0.05);
+    }
+    /* 智齒樣式須排在 .selected 前，否則同特異度會蓋掉選取樣式 */
+    .tooth-btn.wisdom { border-color: var(--wisdom-soft); background: var(--wisdom-bg); }
+
+    .tooth-btn:hover,
+    .tooth-btn.wisdom:hover {
+      border-color: var(--primary-soft);
+      background: #f2f9fc;
+      color: var(--primary);
+      transform: translateY(-1px);
+      box-shadow: 0 3px 7px -4px rgba(26,107,138,0.35);
+    }
+    /* 選取態：淡底＋主色框線，與「新增手術」按鈕同一調性，不用飽和實心 */
+    .tooth-btn.selected,
+    .tooth-btn.wisdom.selected {
+      background: var(--primary-light);
+      border-color: var(--primary);
+      color: var(--primary-dark);
+      font-weight: 800;
+      box-shadow: 0 1px 3px rgba(26,107,138,0.10);
+    }
+    .tooth-btn.selected:hover { transform: translateY(-1px); background: #dfeff6; }
+
+    .wisdom-sub {
+      font-size: 0.52rem; font-weight: 800; line-height: 1;
+      color: var(--wisdom); letter-spacing: 0;
+    }
+
+    .tooth-btn.other::after {
+      content: '';
+      position: absolute;
+      left: 6px; right: 6px; bottom: 3px;
+      height: 2px; border-radius: 2px;
+      background: var(--accent);
+    }
+
+    .q-div {
+      width: 2px;
+      align-self: stretch;
+      background: linear-gradient(180deg, transparent, var(--primary-soft) 22%, var(--primary-soft) 78%, transparent);
+      border-radius: 2px;
+      margin: 0 5px;
+    }
+    .midline {
+      display: flex; align-items: center; gap: 9px;
+      padding: 6px 2px;
+      font-size: 0.63rem;
+      color: var(--text-faint);
+      letter-spacing: 0.12em;
+    }
+    .midline-line {
+      flex: 1; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--border), transparent);
+    }
+
+    .chart-actions {
+      display: flex; gap: 7px; flex-wrap: wrap;
+      padding: 8px 14px 13px;
+      align-items: center;
+    }
+
+    /* ═══════════════════════════════════════════
+       PER-SITE SETTINGS
+       ═══════════════════════════════════════════ */
+    .pt-head {
+      padding: 7px 18px;
+      background: #f2f8fb;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      font-size: 0.7rem; font-weight: 700;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+    }
+    .pt-row {
+      display: grid;
+      grid-template-columns: 96px 1fr;
+      gap: 10px;
+      padding: 11px 18px;
+      border-bottom: 1px solid var(--border);
+    }
+    .pt-row:last-child { border-bottom: none; }
+    .pt-lbl  { display: flex; flex-direction: column; gap: 2px; padding-top: 5px; }
+    .pt-fdi  { font-size: 1rem; font-weight: 800; color: var(--primary); }
+    .pt-fdi.w::after {
+      content: '智';
+      font-size: 0.56rem; font-weight: 800;
+      color: var(--wisdom);
+      background: var(--wisdom-bg);
+      border: 1px solid var(--wisdom-soft);
+      border-radius: 4px;
+      padding: 1px 3px;
+      margin-left: 4px;
+      vertical-align: 3px;
+    }
+    .pt-fdi.soft { font-size: 0.86rem; color: var(--accent); line-height: 1.3; }
+    .pt-name { font-size: 0.7rem; color: var(--text-muted); }
+    .pt-del {
+      align-self: flex-start;
+      margin-top: 3px;
+      border: none; background: none;
+      color: #b0868a; font-size: 0.72rem;
+      cursor: pointer; padding: 0; font-family: inherit;
+    }
+    .pt-del:hover { color: var(--danger); text-decoration: underline; }
+
+    .pt-fields { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+    .pt-line {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 6px;
+      align-items: center;
+    }
+    .pt-line.plain { grid-template-columns: 1fr; }
+    .pt-tag {
+      font-size: 0.66rem; font-weight: 700;
+      padding: 4px 6px; border-radius: 4px;
+      background: var(--primary-light);
+      color: var(--primary);
+      white-space: nowrap;
+    }
+    .pt-tag.s { background: var(--accent-light); color: var(--accent); }
+    .pt-tag.p { background: var(--img-light);    color: var(--img); }
+    .pt-adds  { display: flex; gap: 6px; flex-wrap: wrap; }
+    .mini {
+      padding: 3px 9px;
+      border-radius: 14px;
+      font-size: 0.72rem; font-weight: 700; font-family: inherit;
+      cursor: pointer;
+      border: 1.5px dashed var(--border);
+      background: #fff;
+      color: var(--text-muted);
+      transition: all var(--t);
+    }
+    .mini:hover   { border-color: var(--primary); color: var(--primary); background: var(--primary-light); }
+    .mini.s:hover { border-color: var(--accent);  color: var(--accent);  background: var(--accent-light); }
+    .mini.p:hover { border-color: var(--img);     color: var(--img);     background: var(--img-light); }
+    .x-btn {
+      border: none; background: none;
+      color: #c08a80; font-size: 0.85rem;
+      cursor: pointer; padding: 2px 4px; font-family: inherit;
+      transition: color var(--t);
+    }
+    .x-btn:hover { color: var(--danger); }
+
+    .empty-note {
+      padding: 14px 18px;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+    .pt-empty { border-bottom: 1px solid var(--border); }
+
+    /* ═══════════════════════════════════════════
+       IMAGING
+       ═══════════════════════════════════════════ */
+    .img-row {
+      display: grid;
+      grid-template-columns: 140px 1fr auto auto;
+      gap: 8px; align-items: center;
+      padding: 10px 18px;
+      border-bottom: 1px solid var(--border);
+    }
+    .img-row:last-child { border-bottom: none; }
+    .chk {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 0.78rem; color: var(--text-muted);
+      white-space: nowrap; cursor: pointer;
+      padding: 5px 9px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      transition: all var(--t);
+      user-select: none;
+    }
+    .chk input { accent-color: var(--img); }
+    .chk.on    { border-color: var(--img); background: var(--img-light); color: var(--img); font-weight: 600; }
+
+    /* ═══════════════════════════════════════════
+       PREVIEW
+       ═══════════════════════════════════════════ */
+    .prev-body { padding: 18px; display: flex; flex-direction: column; gap: 15px; }
+    .prev-empty {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; padding: 44px 20px;
+      color: var(--text-muted); gap: 12px;
+    }
+    .prev-empty svg { width: 40px; height: 40px; opacity: 0.28; }
+    .prev-empty p   { font-size: 0.84rem; text-align: center; line-height: 1.7; }
+
+    .prev-sect     { display: flex; flex-direction: column; gap: 6px; }
+    .prev-sect-lbl {
+      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em;
+      color: var(--text-muted);
+    }
+    .prev-box {
+      background: var(--primary-light);
+      border: 1.5px solid var(--border);
+      border-radius: 7px;
+      padding: 12px 50px 12px 14px;
+      font-size: 0.93rem;
+      line-height: 1.9;
+      color: var(--text);
+      position: relative;
+      min-height: 46px;
+    }
+    .prev-box.diag { font-weight: 700; color: var(--primary-dark); }
+    .hl, .hl-i, .hl-p, .hl-a { border-radius: 3px; padding: 1px 3px; font-weight: 600; }
+    .hl   { background: rgba(26,107,138,0.14); }
+    .hl-i { background: rgba(123,94,167,0.16); }
+    .hl-a { background: rgba(154,107,18,0.18); }
+    .hl-p { background: rgba(95,125,62,0.18);  }
+
+    .copy-btn {
+      position: absolute; top: 8px; right: 8px;
+      background: var(--primary); color: #fff;
+      border: none; border-radius: 5px; padding: 3px 9px;
+      font-size: 0.7rem; cursor: pointer; font-family: inherit;
+      opacity: 0.8; transition: all var(--t);
+    }
+    .copy-btn:hover { opacity: 1; background: var(--primary-dark); }
+    .copy-btn.ok    { background: var(--accent); }
+
+    .warn-box {
+      background: #fffbea;
+      border: 1.5px solid #f0d060;
+      border-radius: 7px;
+      padding: 10px 14px;
+      font-size: 0.82rem;
+      color: #7a6000;
+      line-height: 1.6;
+    }
+    .warn-box strong { display: block; margin-bottom: 2px; }
+    .warn-box ul     { margin: 0 0 0 18px; }
+
+    .act-row { display: flex; gap: 9px; flex-wrap: wrap; }
+
+    /* ═══════════════════════════════════════════
+       TIMELINE
+       ═══════════════════════════════════════════ */
+    .tl-row {
+      display: grid;
+      grid-template-columns: 118px 1fr;
+      gap: 10px;
+      padding: 8px 18px;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.82rem;
+      align-items: baseline;
+    }
+    .tl-row:last-child { border-bottom: none; }
+    .tl-date      { font-weight: 700; color: var(--primary); font-size: 0.78rem; }
+    .tl-date.same { color: var(--accent); }
+    .tl-date.none { color: var(--text-muted); font-weight: 600; }
+    .tl-txt       { color: var(--text-muted); line-height: 1.5; }
+    .tl-tag {
+      display: inline-block;
+      font-size: 0.66rem; font-weight: 700;
+      padding: 1px 6px; border-radius: 4px;
+      margin-right: 6px; vertical-align: 1px;
+    }
+    .tag-s { background: var(--primary);       color: #fff; }
+    .tag-v { background: var(--primary-light); color: var(--primary); }
+    .tag-i { background: var(--img-light);     color: var(--img); }
+    .tag-a { background: var(--adm-light);     color: var(--adm); }
+    .tag-r { background: var(--accent-light);  color: var(--accent); }
+    .tag-p { background: var(--patho-light);   color: var(--patho); }
+
+    /* ═══════════════════════════════════════════
+       住院頁面（骨架）
+       ═══════════════════════════════════════════ */
+    .ip-hero {
+      display: flex; flex-direction: column; align-items: center;
+      text-align: center; gap: 14px;
+      padding: 54px 28px 58px;
+      color: var(--text-muted);
+    }
+    .ip-hero svg { width: 44px; height: 44px; opacity: 0.3; }
+    .ip-hero h2  { font-size: 1.05rem; color: var(--text); font-weight: 700; }
+    .ip-hero p   { font-size: 0.86rem; line-height: 1.8; max-width: 460px; }
+    .ip-hero .tagline {
+      font-size: 0.74rem; letter-spacing: 0.14em;
+      color: var(--accent); font-weight: 700;
+    }
+
+    /* ═══════════════════════════════════════════
+       PRINT
+       ═══════════════════════════════════════════ */
+    @media print {
+      header, .col:first-child, .act-row, .warn-box, #tl-card,
+      .side-panel, .panel-scrim { display: none !important; }
+      .layout   { display: block; margin: 0; padding: 20px; }
+      .card     { box-shadow: none; border: none; }
+      .prev-box { background: none; border: none; padding: 0; }
+      .copy-btn { display: none; }
+      .hl, .hl-i, .hl-p, .hl-a { background: none; }
+    }
+  </style>
+</head>
+<body>
+
+<svg style="display:none" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="i-tooth" viewBox="0 0 24 24">
+    <path d="M12 3.4C9.9 2 7.1 2.1 5.5 3.8 4 5.3 3.6 7.4 4 9.5c.3 1.6.7 2.6.9 4 .2 1.3.3 2.7.6 4 .2.9.7 1.5 1.5 1.5s1.3-.6 1.5-1.5l.7-3.2c.2-.9.9-1.4 1.8-1.4s1.6.5 1.8 1.4l.7 3.2c.2.9.7 1.5 1.5 1.5s1.3-.6 1.5-1.5c.3-1.3.4-2.7.6-4 .2-1.4.6-2.4.9-4 .4-2.1 0-4.2-1.5-5.7C16.9 2.1 14.1 2 12 3.4Z"
+      fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+  </symbol>
+</svg>
+
+<header>
+  <div class="brand">
+    <div class="brand-mark"><svg><use href="#i-tooth"/></svg></div>
+    <div>
+      <h1>牙科診斷書產生器</h1>
+      <p>Dental Surgical Report Generator — FDI 國際標準牙位標記法</p>
+    </div>
+  </div>
+  <nav class="head-nav">
+    <button class="nav-btn active" id="nav-op" onclick="showPage('op')">門診手術</button>
+    <button class="nav-btn"        id="nav-ip" onclick="showPage('ip')">住院重大手術</button>
+  </nav>
+</header>
+
+<!-- ══════════════════════════════════════════════
+     PAGE：門診手術
+     ══════════════════════════════════════════════ -->
+<div class="layout" id="page-op">
+
+  <div class="col">
+
+    <!-- ① 就診資訊 -->
+    <div class="card">
+      <div class="card-title"><span>① 就診資訊</span></div>
+      <div class="form-body">
+        <div class="fg">
+          <label class="fl">初診日期 <span class="req">*</span><span class="hint" id="fv-hint"></span></label>
+          <input type="date" id="first-visit" onchange="onFirstVisit()">
+        </div>
+      </div>
+    </div>
+
+    <!-- ② 影像診斷 -->
+    <div class="card">
+      <div class="card-title t-img">
+        <span>② 影像診斷</span>
+        <span class="card-meta" id="img-count"></span>
+      </div>
+      <div id="img-list"></div>
+      <div class="add-row">
+        <button class="add-btn b-img" onclick="addImage()">＋ 新增影像診斷</button>
+      </div>
+    </div>
+
+    <!-- ③ 手術紀錄 -->
+    <div class="card">
+      <div class="card-title">
+        <span>③ 手術紀錄</span>
+        <span class="card-meta" id="surg-count"></span>
+      </div>
+
+      <div class="tabs" id="surg-tabs"></div>
+
+      <div class="chart-wrap">
+        <div class="chart-tray">
+          <div class="chart-dirs">
+            <span>▶ 右（Right）</span>
+            <span>左（Left）◀</span>
+          </div>
+          <div class="jaw-lbl">上顎 Upper</div>
+          <div class="teeth-row" id="upper-row"></div>
+          <div class="midline">
+            <div class="midline-line"></div>
+            <span>正中線 Midline</span>
+            <div class="midline-line"></div>
+          </div>
+          <div class="teeth-row" id="lower-row"></div>
+          <div class="jaw-lbl" style="margin-top:4px">下顎 Lower</div>
+        </div>
+      </div>
+
+      <div class="chart-actions">
+        <button class="chip" onclick="quickSelPreset([{fdi:18,surgCode:'92014'},{fdi:48,surgCode:'92016'}])">右側智齒</button>
+        <button class="chip" onclick="quickSelPreset([{fdi:28,surgCode:'92014'},{fdi:38,surgCode:'92016'}])">左側智齒</button>
+        <button class="chip soft" onclick="openSitePicker(this)">＋ 軟組織部位</button>
+        <button class="chip red" onclick="clearSites()">✕ 清除本次部位</button>
+        <span style="flex:1"></span>
+        <button class="chip red tiny" id="del-surg-btn" onclick="delSurgery()">刪除此次手術</button>
+      </div>
+
+      <div class="pt-head">各部位設定 — 同一部位可加多個術式，文本以「及」串接</div>
+      <div id="pt-list"></div>
+
+      <div class="form-body">
+        <div class="fg">
+          <label class="fl">手術日期 <span class="req">*</span><span class="hint" id="sd-hint"></span></label>
+          <input type="date" id="surgery-date" onchange="setSurgField('date',this.value)">
+        </div>
+
+        <hr class="div">
+
+        <div class="fg">
+          <label class="fl">傷口修復材料 <span class="req">*</span></label>
+          <div class="radio-group" id="mat-grp">
+            <label class="ri" onclick="pickMat(this)">
+              <input type="radio" name="mat" value="膠原蛋白" onchange="onMat()"> 膠原蛋白（Collagen）
+            </label>
+            <label class="ri" onclick="pickMat(this)">
+              <input type="radio" name="mat" value="骨粉" onchange="onMat()"> 骨粉（Bone Graft）
+            </label>
+            <label class="ri" onclick="pickMat(this)">
+              <input type="radio" name="mat" value="膠原蛋白及骨粉" onchange="onMat()"> 膠原蛋白及骨粉
+            </label>
+            <label class="ri" onclick="pickMat(this)">
+              <input type="radio" name="mat" value="PRF" onchange="onMat()"> PRF（富血小板纖維蛋白）
+            </label>
+            <label class="ri" onclick="pickMat(this)">
+              <input type="radio" name="mat" value="none" onchange="onMat()"> 無（僅縫合）
+            </label>
+            <label class="ri" onclick="pickMat(this)">
+              <input type="radio" name="mat" value="custom" onchange="onMat()"> 自訂材料
+            </label>
+          </div>
+          <div class="cw" id="custom-mat-wrap">
+            <input type="text" id="custom-mat" placeholder="請輸入材料名稱…" oninput="setSurgField('customMat',this.value)">
+          </div>
+        </div>
+
+        <hr class="div">
+
+        <div class="fg">
+          <label class="fl">住院</label>
+          <label class="ri adm" id="inp-ri">
+            <input type="checkbox" id="inpatient" onchange="onInpatient(this.checked)"> 本次手術需住院
+          </label>
+          <div class="cw" id="inp-wrap">
+            <div class="two-col">
+              <div class="fg">
+                <label class="fl">住院日期 <span class="req">*</span></label>
+                <input type="date" id="admit-date" onchange="setSurgField('admitDate',this.value)">
+              </div>
+              <div class="fg">
+                <label class="fl">出院日期 <span class="req">*</span></label>
+                <input type="date" id="discharge-date" onchange="setSurgField('dischargeDate',this.value)">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <hr class="div">
+
+        <div class="fg">
+          <label class="fl">拆線日期（選填）</label>
+          <input type="date" id="removal-date" onchange="setSurgField('removalDate',this.value)">
+        </div>
+      </div>
+
+      <div class="add-row">
+        <button class="add-btn" onclick="addSurgery()">＋ 新增手術</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span>重設</span></div>
+      <div class="form-body">
+        <button class="chip red" onclick="resetAll()">清除全部資料並重新開始</button>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="col">
+
+    <div class="card">
+      <div class="card-title"><span>診斷書預覽</span></div>
+      <div class="prev-body">
+
+        <div class="prev-empty" id="empty-st">
+          <svg><use href="#i-tooth"/></svg>
+          <p>點選上方牙位圖選擇部位，<br>完成各部位診斷設定後，<br>診斷書文本將即時顯示於此</p>
+        </div>
+
+        <div class="warn-box" id="warn-msg" style="display:none"></div>
+
+        <div id="result-area" style="display:none">
+          <div class="prev-sect">
+            <div class="prev-sect-lbl">診斷</div>
+            <div class="prev-box diag" id="diag-box">
+              <button class="copy-btn" onclick="cpBox('diag-box',this)">複製</button>
+            </div>
+          </div>
+          <div class="prev-sect" style="margin-top:14px">
+            <div class="prev-sect-lbl">診斷書文本</div>
+            <div class="prev-box" id="report-box">
+              <button class="copy-btn" onclick="cpBox('report-box',this)">複製</button>
+            </div>
+          </div>
+          <div class="act-row" style="margin-top:14px">
+            <button class="btn btn-p" onclick="cpAll()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+              </svg>複製全部
+            </button>
+            <button class="btn btn-o" onclick="window.print()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>
+              </svg>列印
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="card" id="tl-card" style="display:none">
+      <div class="card-title"><span>事件時序</span></div>
+      <div id="tl-list"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span>民國年換算</span></div>
+      <div style="padding:11px 18px; font-size:0.85rem; color:var(--text-muted)">
+        西元年 − 1911 = 民國年 &nbsp;
+        <span id="yr-hint" style="color:var(--primary); font-weight:700"></span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     PAGE：住院重大手術（骨架，內容待補充）
+     ══════════════════════════════════════════════ -->
+<div class="page-narrow" id="page-ip" style="display:none">
+  <div class="card">
+    <div class="card-title"><span>住院重大手術診斷書</span></div>
+    <div class="ip-hero">
+      <svg><use href="#i-tooth"/></svg>
+      <div class="tagline">INPATIENT MAJOR SURGERY</div>
+      <h2>此頁面已預留給住院重大手術</h2>
+      <p>
+        內容與文字邏輯待補充。<br>
+        在此之前，門診頁面的每一次手術都可勾選「本次手術需住院」並填寫住出院日期，
+        診斷書文本會依時序自動插入住院與出院敘述。
+      </p>
+      <button class="btn btn-o" onclick="showPage('op')">回到門診手術</button>
+    </div>
+  </div>
+</div>
+
+<!-- 右側選取面板（診斷／術式／部位） -->
+<div id="panel-host"></div>
+
+<script>
+/* ═══════════════════════════════════════════════
+   1. CONSTANTS
+   ═══════════════════════════════════════════════ */
+
+const Q_NAME = { 1:'右上', 2:'左上', 3:'左下', 4:'右下' };
+const T_NAME = {
+  1:'中門齒', 2:'側門齒', 3:'犬齒',
+  4:'第一小臼齒', 5:'第二小臼齒',
+  6:'第一大臼齒', 7:'第二大臼齒', 8:'第三大臼齒'
+};
+
+// 臼齒可縮寫：同象限同類別時合併序數（右上第一、第二小臼齒）
+const T_CAT = { 4:'小臼齒', 5:'小臼齒', 6:'大臼齒', 7:'大臼齒', 8:'大臼齒' };
+const T_ORD = { 4:'第一', 5:'第二', 6:'第一', 7:'第二', 8:'第三' };
+
+const UPPER_TEETH = [18,17,16,15,14,13,12,11, 21,22,23,24,25,26,27,28];
+const LOWER_TEETH = [48,47,46,45,44,43,42,41, 31,32,33,34,35,36,37,38];
+
+// 軟組織部位：方位（可空）＋ 部位名稱
+const SIDE_DIRS = ['左', '右'];
+const VERT_DIRS = ['上', '下'];
+const SOFT_SITES = ['頰黏膜', '唇', '舌側緣'];
+
+/* ── 手術方式 ──
+   code    : 健保代碼（無代碼者留空）
+   label   : 文本中接在部位後方的術式名稱
+   labelFn : 自帶動詞的特殊句型（術式在前、部位在後）
+   hasFlap : 需切開翻瓣；false → 文本不出現「切開翻瓣」（切片類）        */
+const SURG_CODES = {
+  '92016': { code:'92016', label:'複雜齒切除術', hasFlap:true },
+  '92015': { code:'92015', label:'單純齒切除術', hasFlap:true },
+  '92014': { code:'92014', label:'複雜拔牙術',   hasFlap:true },
+  '92063': { code:'92063', displayLabel:'手術拔除深部阻生齒',
+             labelFn: t => `手術拔除深部阻生之${t}`, hlText:'手術拔除深部阻生', hasFlap:true },
+
+  'CYST':  { label:'囊腫摘除術', hasFlap:true },
+  'APIC':  { label:'根尖切除術', hasFlap:true },
+
+  'ALV':   { label:'齒槽骨整形術',   hasFlap:true },
+  'PRES':  { label:'保存術',         hasFlap:true },
+  'GBR':   { label:'導引骨再生術',   hasFlap:true },
+  'GTR':   { label:'導引組織再生術', hasFlap:true },
+
+  'SINUS': { displayLabel:'移除陷入上顎竇之牙齒或異物',
+             labelFn: t => `移除陷入上顎竇之${t}`, hlText:'移除陷入上顎竇之', hasFlap:true },
+  'LATW':  { label:'上顎竇側窗手術', hasFlap:true },
+  'CALD':  { label:'考德威爾手術',   hasFlap:true },
+
+  'EXBX':  { label:'切除式切片', hasFlap:false },
+  'BX':    { label:'切片',       hasFlap:false },
+};
+
+const SURG_GROUPS = [
+  { group:'拔牙・齒切除',   codes:['92016','92015','92014','92063'] },
+  { group:'囊腫・根尖',     codes:['CYST','APIC'] },
+  { group:'骨・再生處置',   codes:['ALV','PRES','GBR','GTR'] },
+  { group:'上顎竇相關',     codes:['SINUS','LATW','CALD'] },
+  { group:'切片（不翻瓣）', codes:['EXBX','BX'] },
+];
+
+const DIAG_GROUPS = [
+  { group:'阻生・萌發',   items:['阻生','水平阻生','完全骨埋伏阻生','多生牙'] },
+  { group:'囊腫・腫瘤',   items:['含齒囊腫','根尖囊腫','黏液囊腫','骨瘤'] },
+  { group:'植體相關',     items:['植體周圍炎','植體斷裂'] },
+  { group:'齒質・上顎竇', items:['牙齒垂直斷裂','異物或牙齒掉陷入上顎竇'] },
+  { group:'一般牙科',     items:['齒列不正','蛀牙','嚴重牙周病'] },
+];
+const ALL_DIAGS = DIAG_GROUPS.flatMap(g => g.items);
+
+// 選定手術方式時自動帶入的預設診斷
+const SURG_DEFAULT_DIAG = {
+  '92016': '水平阻生',
+  '92015': '阻生',
+  '92014': '齒列不正',
+  '92063': '完全骨埋伏阻生',
+  'CYST':  '含齒囊腫',
+  'APIC':  '根尖囊腫',
+  'SINUS': '異物或牙齒掉陷入上顎竇',
+};
+
+const IMG_TYPES = ['牙科錐狀束電腦斷層', '核磁共振', '電腦斷層'];
+
+// 同日事件的敘述順序
+const EV_ORDER = { img:0, adm:1, surg:2, dis:3, rem:4 };
+
+/* ═══════════════════════════════════════════════
+   2. STATE
+   ═══════════════════════════════════════════════ */
+
+let firstVisit = '';   // 初診日期 yyyy-mm-dd
+let images     = [];   // [{ id, date, type, selfPay }]
+let surgeries  = [];   // 見 newSurgery()
+let activeSid  = null;
+let seq        = 0;
+
+/* 部位 id（字串）
+     牙位   → FDI 數字字串，例："18"
+     軟組織 → "s:" + 名稱，例："s:左頰黏膜"
+   cfg[siteId] = { surgCodes, diagnosis, diagnosis2, patho }
+     surgCodes  : 術式清單，0～n 個；多個時文本以「及」串接
+     diagnosis2 : 合併診斷（null = 未啟用）
+     patho      : 病理報告證實之診斷（null = 未啟用）              */
+
+function newSurgery(date) {
+  return {
+    id: ++seq,
+    sites: new Set(),
+    cfg: {},
+    date: date || firstVisit || todayStr(),
+    mat: '',
+    customMat: '',
+    removalDate: '',
+    inpatient: false,
+    admitDate: '',
+    dischargeDate: ''
+  };
+}
+
+const actS = () => surgeries.find(s => s.id === activeSid) || null;
+
+/* ═══════════════════════════════════════════════
+   3. HELPERS
+   ═══════════════════════════════════════════════ */
+
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+const toothName = fdi => Q_NAME[Math.floor(fdi/10)] + T_NAME[fdi % 10];
+
+const isTooth  = id => /^\d+$/.test(id);
+const siteName = id => isTooth(id) ? toothName(+id) : id.slice(2);
+
+// 牙位依 FDI 排序在前，軟組織部位依加入順序在後
+const sortSites = arr => {
+  const list = [...arr];
+  const teeth = list.filter(isTooth).sort((a, b) => +a - +b);
+  const soft  = list.filter(id => !isTooth(id));
+  return teeth.concat(soft);
+};
+
+function toROC(ds) {
+  if (!ds) return '';
+  const [y, m, d] = ds.split('-').map(Number);
+  return `民國${y-1911}年${m}月${d}日`;
+}
+
+function shortDate(ds) {
+  if (!ds) return '—';
+  const [, m, d] = ds.split('-').map(Number);
+  return `${m}/${d}`;
+}
+
+// 「甲」「甲及乙」「甲、乙及丙」
+function joinZh(arr) {
+  if (!arr.length) return '';
+  if (arr.length === 1) return arr[0];
+  if (arr.length === 2) return arr[0] + '及' + arr[1];
+  return arr.slice(0, -1).join('、') + '及' + arr[arr.length-1];
+}
+
+const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+// 與初診同日 → 「當日」，否則民國全日期
+const datePrefix = ds => (firstVisit && ds === firstVisit) ? '當日' : toROC(ds);
+
+/* ── 部位縮寫 ──
+   同象限、同類別（大臼齒／小臼齒）的多顆牙合併序數：
+     14,15    → 右上第一、第二小臼齒
+     16,17,18 → 右上第一、第二、第三大臼齒
+   門齒、犬齒與軟組織部位一律使用全名。                       */
+function compressSites(ids) {
+  const order  = [];
+  const bucket = new Map();
+
+  sortSites(ids).forEach(id => {
+    if (!isTooth(id)) { order.push('x' + id); bucket.set('x' + id, { fixed: siteName(id) }); return; }
+    const fdi = +id;
+    const q   = Math.floor(fdi / 10);
+    const cat = T_CAT[fdi % 10];
+    const key = cat ? `${q}${cat}` : `s${fdi}`;
+    if (!bucket.has(key)) { bucket.set(key, { q, cat, fdis: [] }); order.push(key); }
+    bucket.get(key).fdis.push(fdi);
+  });
+
+  return order.map(k => {
+    const g = bucket.get(k);
+    if (g.fixed) return g.fixed;
+    if (!g.cat || g.fdis.length === 1) return toothName(g.fdis[0]);
+    return Q_NAME[g.q] + g.fdis.map(f => T_ORD[f % 10]).join('、') + g.cat;
+  });
+}
+
+/* ═══════════════════════════════════════════════
+   4. PAGE SWITCHING
+   ═══════════════════════════════════════════════ */
+
+function showPage(name) {
+  closePicker();
+  document.getElementById('page-op').style.display = name === 'op' ? '' : 'none';
+  document.getElementById('page-ip').style.display = name === 'ip' ? '' : 'none';
+  document.getElementById('nav-op').classList.toggle('active', name === 'op');
+  document.getElementById('nav-ip').classList.toggle('active', name === 'ip');
+  window.scrollTo({ top: 0 });
+}
+
+/* ═══════════════════════════════════════════════
+   5. DENTAL CHART
+   ═══════════════════════════════════════════════ */
+
+function renderRow(teeth, rowId) {
+  const cur = actS();
+  document.getElementById(rowId).innerHTML = teeth.map((fdi, i) => {
+    const id      = String(fdi);
+    const divider = i === 8 ? '<div class="q-div"></div>' : '';
+    const isW     = fdi % 10 === 8;
+    const isSel   = cur ? cur.sites.has(id) : false;
+    const inOther = surgeries.some(s => s.id !== activeSid && s.sites.has(id));
+    const title   = `${fdi}  ${toothName(fdi)}` + (inOther ? '（已在其他次手術中）' : '');
+    return `${divider}<button
+      class="tooth-btn${isW ? ' wisdom' : ''}${isSel ? ' selected' : ''}${inOther ? ' other' : ''}"
+      onclick="toggleSite('${id}')" title="${title}"
+    >${fdi}${isW ? '<span class="wisdom-sub">智</span>' : ''}</button>`;
+  }).join('');
+}
+
+function renderChart() {
+  renderRow(UPPER_TEETH, 'upper-row');
+  renderRow(LOWER_TEETH, 'lower-row');
+}
+
+/* ═══════════════════════════════════════════════
+   6. SURGERY TABS
+   ═══════════════════════════════════════════════ */
+
+function renderTabs() {
+  document.getElementById('surg-tabs').innerHTML =
+    surgeries.map((s, i) => `
+      <button class="tab${s.id === activeSid ? ' active' : ''}" onclick="setActive(${s.id})">
+        手術 ${i+1}<span class="tab-sub">${shortDate(s.date)}．${s.sites.size}部位${s.inpatient ? '．住院' : ''}</span>
+      </button>`).join('') +
+    `<button class="tab tab-add" onclick="addSurgery()">＋ 新增手術</button>`;
+
+  document.getElementById('surg-count').textContent =
+    surgeries.length > 1 ? `共 ${surgeries.length} 次手術` : '';
+  document.getElementById('del-surg-btn').style.display =
+    surgeries.length > 1 ? '' : 'none';
+}
+
+function setActive(id) { closePicker(); activeSid = id; renderSurgery(); }
+
+function addSurgery() {
+  closePicker();
+  const s = newSurgery(todayStr());
+  surgeries.push(s);
+  activeSid = s.id;
+  renderSurgery();
+}
+
+function delSurgery() {
+  if (surgeries.length <= 1) return;
+  closePicker();
+  const i = surgeries.findIndex(s => s.id === activeSid);
+  surgeries.splice(i, 1);
+  activeSid = surgeries[Math.max(0, i - 1)].id;
+  renderSurgery();
+}
+
+// 手術區整體重繪
+function renderSurgery() {
+  renderTabs();
+  renderChart();
+  renderPerSite();
+  syncSurgForm();
+  update();
+}
+
+/* ═══════════════════════════════════════════════
+   7. SITE SELECTION（作用於目前手術）
+   ═══════════════════════════════════════════════ */
+
+const blankCfg = () => ({ surgCodes: [], diagnosis: '', diagnosis2: null, patho: null });
+
+function toggleSite(id) {
+  const s = actS(); if (!s) return;
+  if (s.sites.has(id)) {
+    s.sites.delete(id);
+    delete s.cfg[id];
+  } else {
+    s.sites.add(id);
+    s.cfg[id] = s.cfg[id] || blankCfg();
+  }
+  closePicker();
+  renderChart();
+  renderPerSite();
+  renderTabs();
+  update();
+}
+
+function quickSelPreset(presets) {
+  const s = actS(); if (!s) return;
+  presets.forEach(({ fdi, surgCode }) => {
+    const id = String(fdi);
+    s.sites.add(id);
+    const def = SURG_DEFAULT_DIAG[surgCode] || '';
+    if (!s.cfg[id]) {
+      s.cfg[id] = { surgCodes: [surgCode], diagnosis: def, diagnosis2: null, patho: null };
+    } else {
+      s.cfg[id].surgCodes = [surgCode];
+      if (!s.cfg[id].diagnosis) s.cfg[id].diagnosis = def;
+    }
+  });
+  renderChart();
+  renderPerSite();
+  renderTabs();
+  update();
+}
+
+function clearSites() {
+  const s = actS(); if (!s) return;
+  closePicker();
+  s.sites.clear();
+  s.cfg = {};
+  renderChart();
+  renderPerSite();
+  renderTabs();
+  update();
+}
+
+function resetAll() {
+  closePicker();
+  firstVisit = todayStr();
+  document.getElementById('first-visit').value = firstVisit;
+  images    = [];
+  surgeries = [newSurgery(firstVisit)];
+  activeSid = surgeries[0].id;
+  renderImages();
+  renderSurgery();
+}
+
+/* ═══════════════════════════════════════════════
+   8. PER-SITE SETTINGS
+   ═══════════════════════════════════════════════ */
+
+const surgLabelOf = code => {
+  const cfg = SURG_CODES[code];
+  return cfg ? (cfg.displayLabel || cfg.label) : '';
+};
+
+// 開啟浮層用的欄位按鈕（把自己當錨點傳進去）
+function pickerBtn(ctx, val, placeholder, extraCode) {
+  const label = val
+    ? (extraCode ? `<span class="code">${extraCode}</span>${val}` : val)
+    : placeholder;
+  return `<button class="picker-btn${val ? '' : ' empty'}"
+    onclick='openPicker(this, ${JSON.stringify(ctx)})'>${label}</button>`;
+}
+
+function renderPerSite() {
+  const list = document.getElementById('pt-list');
+  const s = actS();
+
+  if (!s || s.sites.size === 0) {
+    list.innerHTML = `<div class="empty-note pt-empty">尚未選擇部位 — 請於上方牙位圖點選牙位，或按「＋ 軟組織部位」加入其他部位。</div>`;
+    return;
+  }
+
+  list.innerHTML = sortSites(s.sites).map(id => {
+    const c    = s.cfg[id] || {};
+    const on   = v => v !== null && v !== undefined;
+    const tooth = isTooth(id);
+    const isW  = tooth && (+id) % 10 === 8;
+    const codes = (c.surgCodes && c.surgCodes.length) ? c.surgCodes : [''];
+
+    const lines = [
+      `<div class="pt-line plain">${pickerBtn({ id:`d-${id}`, kind:'diag', site:id, key:'diagnosis' }, c.diagnosis || '', '選擇診斷…')}</div>`
+    ];
+
+    if (on(c.diagnosis2)) lines.push(`<div class="pt-line">
+      <span class="pt-tag">合併</span>
+      ${pickerBtn({ id:`d2-${id}`, kind:'diag', site:id, key:'diagnosis2' }, c.diagnosis2, '選擇合併診斷…')}
+      <button class="x-btn" title="移除合併診斷" onclick="dropField('${id}','diagnosis2')">✕</button>
+    </div>`);
+
+    codes.forEach((code, i) => {
+      const btn = pickerBtn(
+        { id:`s${i}-${id}`, kind:'surg', site:id, idx:i },
+        surgLabelOf(code), '選擇手術方式…（無則留空）',
+        code && SURG_CODES[code].code ? SURG_CODES[code].code : ''
+      );
+      lines.push(i === 0
+        ? `<div class="pt-line plain">${btn}</div>`
+        : `<div class="pt-line">
+             <span class="pt-tag s">術式</span>${btn}
+             <button class="x-btn" title="移除此術式" onclick="dropSurgCode('${id}',${i})">✕</button>
+           </div>`);
+    });
+
+    if (on(c.patho)) lines.push(`<div class="pt-line">
+      <span class="pt-tag p">病理</span>
+      ${pickerBtn({ id:`p-${id}`, kind:'diag', site:id, key:'patho' }, c.patho, '選擇病理報告診斷…')}
+      <button class="x-btn" title="移除病理報告" onclick="dropField('${id}','patho')">✕</button>
+    </div>`);
+
+    const adds = [];
+    if (codes[codes.length - 1]) adds.push(`<button class="mini s" onclick="addSurgCode('${id}')">＋ 術式</button>`);
+    if (!on(c.diagnosis2)) adds.push(`<button class="mini"   onclick="addField('${id}','diagnosis2')">＋ 合併診斷</button>`);
+    if (!on(c.patho))      adds.push(`<button class="mini p" onclick="addField('${id}','patho')">＋ 病理報告</button>`);
+    if (adds.length) lines.push(`<div class="pt-adds">${adds.join('')}</div>`);
+
+    const label = tooth
+      ? `<span class="pt-fdi${isW ? ' w' : ''}">${id}</span>
+         <span class="pt-name">${toothName(+id)}</span>`
+      : `<span class="pt-fdi soft">${siteName(id)}</span>
+         <span class="pt-name">軟組織部位</span>
+         <button class="pt-del" onclick="toggleSite('${id}')">移除部位</button>`;
+
+    return `<div class="pt-row">
+      <div class="pt-lbl">${label}</div>
+      <div class="pt-fields">${lines.join('')}</div>
+    </div>`;
+  }).join('');
+}
+
+function setTooth(siteId, key, val) {
+  const s = actS(); if (!s) return;
+  s.cfg[siteId] = s.cfg[siteId] || blankCfg();
+  s.cfg[siteId][key] = val;
+  update();
+}
+
+/* ── 術式清單（每個部位 0～n 個） ── */
+
+function setSurgCode(siteId, idx, val) {
+  const s = actS(); if (!s) return;
+  const c = s.cfg[siteId] = s.cfg[siteId] || blankCfg();
+  const arr = (c.surgCodes || []).slice();
+  while (arr.length <= idx) arr.push('');
+  arr[idx] = val;
+  c.surgCodes = arr.some(Boolean) ? arr : [];
+
+  if (val) {
+    const def = SURG_DEFAULT_DIAG[val] || '';
+    // 首個術式帶入主診斷；追加術式則帶入已啟用但未填的合併診斷
+    if (def && !c.diagnosis) c.diagnosis = def;
+    else if (def && c.diagnosis2 === '' && def !== c.diagnosis) c.diagnosis2 = def;
+  }
+  renderPerSite();
+  update();
+}
+
+function addSurgCode(siteId) {
+  const s = actS(); if (!s) return;
+  const c = s.cfg[siteId] = s.cfg[siteId] || blankCfg();
+  c.surgCodes = (c.surgCodes || []).concat('');
+  renderPerSite();
+  update();
+}
+
+function dropSurgCode(siteId, idx) {
+  const s = actS(); if (!s) return;
+  const c = s.cfg[siteId] || {};
+  const arr = (c.surgCodes || []).slice();
+  arr.splice(idx, 1);
+  c.surgCodes = arr.some(Boolean) ? arr : [];
+  closePicker();
+  renderPerSite();
+  update();
+}
+
+// 啟用／移除「合併診斷」與「病理報告」欄位
+function addField(siteId, key) {
+  const s = actS(); if (!s) return;
+  const c = s.cfg[siteId] = s.cfg[siteId] || blankCfg();
+  c[key] = key === 'patho' ? (c.diagnosis2 || c.diagnosis || '') : '';
+  renderPerSite();
+  update();
+}
+
+function dropField(siteId, key) {
+  const s = actS(); if (!s) return;
+  if (s.cfg[siteId]) s.cfg[siteId][key] = null;
+  closePicker();
+  renderPerSite();
+  update();
+}
+
+/* ═══════════════════════════════════════════════
+   9. SIDE PANEL — 診斷／術式／部位選取
+   ═══════════════════════════════════════════════ */
+
+let pk       = null;    // { kind:'diag'|'surg'|'site', site, key|idx }
+let pkAnchor = null;    // 觸發此浮層的欄位按鈕（定位與收合動畫的起點）
+let pkCat    = '全部';
+let pkDirs   = { side:'', vert:'' };
+
+function openPicker(anchorEl, ctx) {
+  if (pk) hidePanel();
+  pk = ctx;
+  pkAnchor = anchorEl || null;
+  pkCat = '全部';
+  if (pkAnchor) pkAnchor.classList.add('open');
+  renderPanel();
+  window.addEventListener('scroll', reposition, true);
+  window.addEventListener('resize', reposition);
+}
+
+function openSitePicker(anchorEl) {
+  pkDirs = { side:'', vert:'' };
+  openPicker(anchorEl, { kind:'site' });
+}
+
+// 立即移除（不播收合動畫）
+function hidePanel() {
+  pk = null;
+  if (pkAnchor) pkAnchor.classList.remove('open');
+  pkAnchor = null;
+  document.getElementById('panel-host').innerHTML = '';
+  window.removeEventListener('scroll', reposition, true);
+  window.removeEventListener('resize', reposition);
+}
+
+function closePicker() {
+  if (!pk) return;
+  const el = document.querySelector('.side-panel');
+  if (!el) { hidePanel(); return; }
+  // 播完精靈收合動畫再移除
+  const host = document.getElementById('panel-host');
+  el.style.animation = '';          // 清掉篩選時設下的 animation:none，收合動畫才播得出來
+  el.classList.add('closing');
+  const done = () => { if (host.contains(el)) host.innerHTML = ''; };
+  el.addEventListener('animationend', done, { once: true });
+  setTimeout(done, 320);
+  pk = null;
+  if (pkAnchor) pkAnchor.classList.remove('open');
+  pkAnchor = null;
+  window.removeEventListener('scroll', reposition, true);
+  window.removeEventListener('resize', reposition);
+}
+
+/* 依錨點決定浮層位置：優先展開於右側空白處，空間不足才翻到左側 */
+function positionPanel() {
+  const el = document.querySelector('.side-panel');
+  if (!el || !pkAnchor) return;
+
+  const a  = pkAnchor.getBoundingClientRect();
+  const pw = el.offsetWidth, ph = el.offsetHeight;
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const gap = 12, edge = 12;
+
+  let left = a.right + gap;
+  let dir  = '';                                   // 由左緣噴出
+  if (left + pw > vw - edge) {
+    left = a.left - pw - gap;
+    dir  = 'from-right';                           // 由右緣噴出
+  }
+  if (left < edge) { left = Math.max(edge, (vw - pw) / 2); dir = ''; }
+
+  let top = Math.min(Math.max(edge, a.top - 10), Math.max(edge, vh - ph - edge));
+
+  el.style.left = left + 'px';
+  el.style.top  = top + 'px';
+  el.classList.toggle('from-right', dir === 'from-right');
+
+  // 收束點對齊觸發欄位的垂直中心
+  const oy = Math.min(Math.max(((a.top + a.height / 2) - top) / ph, 0.04), 0.96) * 100;
+  el.style.setProperty('--oy', oy.toFixed(1) + '%');
+}
+
+// 重新定位（捲動／改變視窗大小時），不重播動畫
+function reposition() { positionPanel(); }
+
+function setPkCat(cat) { pkCat = cat; renderPanel(true); }
+function setPkDir(kind, val) {
+  pkDirs[kind] = pkDirs[kind] === val ? '' : val;
+  renderPanel(true);
+}
+
+// 目前欄位的值
+function pkValue() {
+  if (!pk || pk.kind === 'site') return '';
+  const s = actS(); if (!s) return '';
+  const c = s.cfg[pk.site] || {};
+  if (pk.kind === 'diag') return c[pk.key] || '';
+  return (c.surgCodes || [])[pk.idx] || '';
+}
+
+function choosePick(val) {
+  if (!pk) return;
+  const ctx = pk;
+  closePicker();                       // 先收合，錨點按鈕才不會在動畫中被重繪掉
+  if (ctx.kind === 'diag')      setTooth(ctx.site, ctx.key, val);
+  else if (ctx.kind === 'surg') setSurgCode(ctx.site, ctx.idx, val);
+  renderPerSite();                     // 讓欄位按鈕顯示新選的值
+}
+
+function chooseSite(name) {
+  const s = actS(); if (!s) return;
+  const full = pkDirs.side + pkDirs.vert + name;
+  const id = 's:' + full;
+  s.sites.add(id);
+  s.cfg[id] = s.cfg[id] || blankCfg();
+  closePicker();
+  renderPerSite();
+  renderTabs();
+  update();
+}
+
+/* keepAnim=true：僅更新內容（分類篩選／方位切換），不重播展開動畫 */
+function renderPanel(keepAnim) {
+  const host = document.getElementById('panel-host');
+  if (!pk) { host.innerHTML = ''; return; }
+
+  let cats = '', body = '';
+
+  if (pk.kind === 'site') {
+    const preview = pkDirs.side + pkDirs.vert;
+    cats = `<span class="cat-chip on" style="pointer-events:none">軟組織部位</span>`;
+    body = `
+      <div>
+        <div class="cat-sec-title">方位（可不選）</div>
+        <div class="dir-row">
+          ${SIDE_DIRS.map(d => `<button class="dir-chip${pkDirs.side === d ? ' on' : ''}" onclick="setPkDir('side','${d}')">${d}</button>`).join('')}
+        </div>
+        <div class="dir-row">
+          ${VERT_DIRS.map(d => `<button class="dir-chip${pkDirs.vert === d ? ' on' : ''}" onclick="setPkDir('vert','${d}')">${d}</button>`).join('')}
+        </div>
+      </div>
+      <div>
+        <div class="cat-sec-title">部位</div>
+        <div class="dir-preview">將加入：<b>${preview}〔部位〕</b>　—　點選下方部位即完成</div>
+        <div class="pick-grid">
+          ${SOFT_SITES.map(n => `<button class="pick-card" onclick="chooseSite('${n}')">${preview}${n}</button>`).join('')}
+        </div>
+      </div>`;
+  } else {
+    const groups = pk.kind === 'diag'
+      ? DIAG_GROUPS.map(g => ({ name:g.group, items:g.items.map(d => ({ v:d, t:d })) }))
+      : SURG_GROUPS.map(g => ({ name:g.group, items:g.codes.map(c => ({ v:c, t:surgLabelOf(c), code:SURG_CODES[c].code || '' })) }));
+
+    const names = ['全部', ...groups.map(g => g.name)];
+    cats = names.map(n =>
+      `<button class="cat-chip${pkCat === n ? ' on' : ''}" onclick="setPkCat('${n}')">${n}</button>`).join('');
+
+    const shown = pkCat === '全部' ? groups : groups.filter(g => g.name === pkCat);
+    const curVal = pkValue();
+
+    body = (pk.kind === 'surg'
+      ? `<div><div class="pick-grid">
+           <button class="pick-card clear${!curVal ? ' on' : ''}" onclick="choosePick('')">— 不填術式 —</button>
+         </div></div>`
+      : '') +
+      shown.map(g => `
+        <div>
+          <div class="cat-sec-title">${g.name}</div>
+          <div class="pick-grid">
+            ${g.items.map(it => `
+              <button class="pick-card${curVal === it.v ? ' on' : ''}" onclick="choosePick('${it.v}')">
+                ${it.code ? `<span class="code">${it.code}</span>` : ''}${it.t}
+              </button>`).join('')}
+          </div>
+        </div>`).join('');
+  }
+
+  const prev = host.querySelector('.side-panel');
+  const keep = keepAnim && prev;
+  const pos  = keep ? { left: prev.style.left, top: prev.style.top, oy: prev.style.getPropertyValue('--oy'),
+                        right: prev.classList.contains('from-right'), scroll: prev.querySelector('.panel-body').scrollTop } : null;
+
+  host.innerHTML = `
+    <div class="panel-scrim" onclick="closePicker()"></div>
+    <aside class="side-panel${keep ? ' no-anim' : ''}${pos && pos.right ? ' from-right' : ''}" role="dialog">
+      <div class="panel-cats">${cats}<button class="panel-x" onclick="closePicker()" title="關閉">✕</button></div>
+      <div class="panel-body">${body}</div>
+    </aside>`;
+
+  const el = host.querySelector('.side-panel');
+  if (keep) {
+    // 內容更新：沿用原本位置、不重播動畫，只在會超出視窗下緣時才上移
+    el.style.animation = 'none';
+    el.style.left = pos.left; el.style.top = pos.top;
+    el.style.setProperty('--oy', pos.oy);
+    el.querySelector('.panel-body').scrollTop = pos.scroll;
+    const over = parseFloat(pos.top) + el.offsetHeight - (window.innerHeight - 12);
+    if (over > 0) el.style.top = Math.max(12, parseFloat(pos.top) - over) + 'px';
+  } else {
+    // 先量測尺寸定位，再於下一影格播放精靈展開
+    el.style.visibility = 'hidden';
+    el.style.animation  = 'none';
+    positionPanel();
+    requestAnimationFrame(() => {
+      el.style.visibility = '';
+      el.style.animation  = '';
+    });
+  }
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closePicker(); });
+
+/* ═══════════════════════════════════════════════
+   10. SURGERY FORM BINDING
+   ═══════════════════════════════════════════════ */
+
+function setSurgField(key, val) {
+  const s = actS(); if (!s) return;
+  s[key] = val;
+  if (key === 'date') renderTabs();
+  update();
+}
+
+function onMat() {
+  const s = actS(); if (!s) return;
+  const r = document.querySelector('input[name="mat"]:checked');
+  s.mat = r ? r.value : '';
+  update();
+}
+
+function pickMat(label) {
+  document.querySelectorAll('#mat-grp .ri').forEach(l => l.classList.remove('sel'));
+  label.classList.add('sel');
+  setTimeout(onMat, 10);
+}
+
+function onInpatient(checked) {
+  const s = actS(); if (!s) return;
+  s.inpatient = checked;
+  if (checked && !s.admitDate) s.admitDate = s.date || '';
+  syncSurgForm();
+  renderTabs();
+  update();
+}
+
+function onFirstVisit() {
+  firstVisit = document.getElementById('first-visit').value;
+  renderTabs();
+  update();
+}
+
+function syncSurgForm() {
+  const s = actS(); if (!s) return;
+  document.getElementById('surgery-date').value   = s.date || '';
+  document.getElementById('removal-date').value   = s.removalDate || '';
+  document.getElementById('custom-mat').value     = s.customMat || '';
+  document.getElementById('admit-date').value     = s.admitDate || '';
+  document.getElementById('discharge-date').value = s.dischargeDate || '';
+
+  document.querySelectorAll('#mat-grp .ri').forEach(l => {
+    const inp = l.querySelector('input');
+    inp.checked = inp.value === s.mat;
+    l.classList.toggle('sel', inp.checked);
+  });
+  document.getElementById('custom-mat-wrap').classList.toggle('show', s.mat === 'custom');
+
+  document.getElementById('inpatient').checked = s.inpatient;
+  document.getElementById('inp-ri').classList.toggle('sel', s.inpatient);
+  document.getElementById('inp-wrap').classList.toggle('show', s.inpatient);
+}
+
+/* ═══════════════════════════════════════════════
+   11. IMAGING
+   ═══════════════════════════════════════════════ */
+
+function addImage() {
+  images.push({ id: ++seq, date: firstVisit || todayStr(), type: IMG_TYPES[0], selfPay: false });
+  renderImages();
+  update();
+}
+
+function delImage(id) {
+  images = images.filter(x => x.id !== id);
+  renderImages();
+  update();
+}
+
+function setImg(id, key, val) {
+  const im = images.find(x => x.id === id);
+  if (!im) return;
+  im[key] = val;
+  renderImages();
+  update();
+}
+
+function renderImages() {
+  const list = document.getElementById('img-list');
+  document.getElementById('img-count').textContent =
+    images.length ? `共 ${images.length} 項檢查` : '';
+
+  if (!images.length) {
+    list.innerHTML = `<div class="empty-note">尚未加入影像檢查 — 需要時請點擊下方「新增影像診斷」。</div>`;
+    return;
+  }
+
+  list.innerHTML = images.map(im => `
+    <div class="img-row">
+      <input type="date" value="${im.date}" onchange="setImg(${im.id},'date',this.value)">
+      <select onchange="setImg(${im.id},'type',this.value)">
+        ${IMG_TYPES.map(t => `<option value="${t}"${im.type === t ? ' selected' : ''}>${t}</option>`).join('')}
+      </select>
+      <label class="chk${im.selfPay ? ' on' : ''}">
+        <input type="checkbox" ${im.selfPay ? 'checked' : ''} onchange="setImg(${im.id},'selfPay',this.checked)"> 自費
+      </label>
+      <button class="chip red tiny" onclick="delImage(${im.id})" title="刪除">✕</button>
+    </div>`).join('');
+}
+
+/* ═══════════════════════════════════════════════
+   12. TEXT GENERATION
+   ═══════════════════════════════════════════════ */
+
+// 診斷與術式互相獨立：有診斷者列入診斷列，有術式者寫入手術敘述
+const allSites  = s => sortSites(s.sites).map(id => ({ id, ...(s.cfg[id] || {}) }));
+const diagSites = s => allSites(s).filter(t => t.diagnosis);
+const procSites = s => allSites(s).filter(t => (t.surgCodes || []).some(Boolean));
+
+/* ── 診斷列 ──
+   以「診斷組合」分群：組合完全相同的部位才合併敘述，
+   有合併診斷者自成一項；部位一律使用全名。                  */
+function buildDiagEntries() {
+  const groups = new Map();
+
+  surgeries.forEach(s => diagSites(s).forEach(t => {
+    const d2  = t.diagnosis2 || '';
+    const key = t.diagnosis + '|' + d2;
+    if (!groups.has(key)) groups.set(key, { ids: new Set(), d1: t.diagnosis, d2 });
+    groups.get(key).ids.add(t.id);
+  }));
+
+  return [...groups.values()].map(g =>
+    joinZh(sortSites(g.ids).map(siteName)) + g.d1 + (g.d2 ? '合併' + g.d2 : '')
+  );
+}
+
+/* ── 單次手術句 ──
+   ．術式組合完全相同的部位才合併並使用縮寫
+   ．同一部位的多個術式以「及」串接
+   ．術式組合中只要有一項需翻瓣，該組即歸入翻瓣句                */
+function surgeryClause(s) {
+  const td = procSites(s);
+  if (!td.length) return null;
+
+  const groups = new Map();
+  td.forEach(t => {
+    const codes = (t.surgCodes || []).filter(Boolean);
+    const key = codes.join('|');
+    if (!groups.has(key)) groups.set(key, { codes, ids: [] });
+    groups.get(key).ids.push(t.id);
+  });
+
+  const phrase = g => {
+    const sites = joinZh(compressSites(g.ids));
+    const fnCodes   = g.codes.filter(c => SURG_CODES[c].labelFn);
+    const restCodes = g.codes.filter(c => !SURG_CODES[c].labelFn);
+    const parts = fnCodes.map(c => SURG_CODES[c].labelFn(sites));
+    if (restCodes.length) {
+      parts.push((fnCodes.length ? '' : sites) +
+                 joinZh(restCodes.map(c => SURG_CODES[c].label)));
+    }
+    return joinZh(parts);
+  };
+
+  const isFlap  = g => g.codes.some(c => SURG_CODES[c].hasFlap);
+  const all     = [...groups.values()];
+  const flapG   = all.filter(isFlap);
+  const noFlapG = all.filter(g => !isFlap(g));
+
+  // 組內已用「及」串接多個術式時，組與組之間改用「、」避免層級混淆
+  const join = gs => {
+    const parts = gs.map(phrase);
+    return gs.some(g => g.codes.length > 1) ? parts.join('、') : joinZh(parts);
+  };
+
+  const allLabelFn = flapG.length > 0 &&
+                     flapG.every(g => g.codes.every(c => SURG_CODES[c].labelFn));
+  const flapPrefix = allLabelFn ? '切開翻瓣' : '切開翻瓣進行';
+
+  let proc;
+  if (flapG.length && !noFlapG.length)      proc = flapPrefix + join(flapG);
+  else if (!flapG.length && noFlapG.length) proc = '進行' + join(noFlapG);
+  else                                      proc = flapPrefix + join(flapG) + '，並進行' + join(noFlapG);
+
+  const matLabel = s.mat === 'custom' ? s.customMat.trim() : s.mat;
+  const wound = (s.mat === 'none' || !matLabel)
+    ? '，術後縫合傷口'
+    : `，術後傷口以${matLabel}修補並縫合`;
+
+  return `於局部麻醉下${proc}${wound}`;
+}
+
+const imageClause = im => `以${im.selfPay ? '自費' : ''}${im.type}輔助診斷`;
+
+/* ── 事件時間軸 ── 依日期排序，同日合併 ── */
+function collectEvents() {
+  const ev = [];
+  const push = (date, kind, text) => { if (date) ev.push({ date, kind, order: EV_ORDER[kind], text }); };
+
+  images.forEach(im => { if (im.type) push(im.date, 'img', imageClause(im)); });
+
+  surgeries.forEach(s => {
+    const clause = surgeryClause(s);
+    if (s.inpatient) push(s.admitDate, 'adm', '住院');
+    if (clause) push(s.date, 'surg', clause);
+    if (s.inpatient) push(s.dischargeDate, 'dis', '出院');
+    if (clause) push(s.removalDate, 'rem', '於本院追蹤並拆除縫線');
+  });
+
+  ev.sort((a, b) => a.date === b.date ? a.order - b.order : (a.date < b.date ? -1 : 1));
+  return ev;
+}
+
+/* ── 病理報告句 ── */
+function pathoSentence() {
+  const items = [];
+  surgeries.forEach(s => allSites(s).forEach(t => {
+    if (t.patho) items.push({ id: t.id, d: t.patho });
+  }));
+  if (!items.length) return '';
+  if (items.length === 1) return `病理報告證實為${items[0].d}。`;
+
+  const byDiag = new Map();
+  items.forEach(({ id, d }) => {
+    if (!byDiag.has(d)) byDiag.set(d, new Set());
+    byDiag.get(d).add(id);
+  });
+
+  return '病理報告證實' + [...byDiag.entries()]
+    .map(([d, ids]) => joinZh(sortSites(ids).map(siteName)) + '為' + d)
+    .join('、') + '。';
+}
+
+function buildReport() {
+  const entries = buildDiagEntries();
+  if (!entries.length) return null;
+
+  const diagText = entries.length === 1
+    ? '診斷：' + entries[0]
+    : '診斷：\n' + entries.join('\n');
+
+  let reportText = firstVisit
+    ? `患者因上述診斷於${toROC(firstVisit)}於本院就診。`
+    : `患者因上述診斷於本院就診。`;
+
+  const events = collectEvents();
+  const groups = [];
+  events.forEach(e => {
+    const last = groups[groups.length - 1];
+    if (last && last.date === e.date) last.items.push(e);
+    else groups.push({ date: e.date, items: [e] });
+  });
+
+  groups.forEach(g => {
+    let sentence = datePrefix(g.date);
+    g.items.forEach((e, i) => {
+      if (i === 0) { sentence += e.text; return; }
+      const sep = (sentence.includes('，') || e.text.includes('並')) ? '，並' : '並';
+      sentence += sep + e.text;
+    });
+    reportText += sentence + '。';
+  });
+
+  const patho = pathoSentence();
+  if (patho) reportText += patho;
+
+  const matLabels = surgeries
+    .filter(s => procSites(s).length)
+    .map(s => s.mat === 'custom' ? s.customMat.trim() : s.mat)
+    .filter(m => m && m !== 'none');
+
+  return { diagText, reportText, matLabels, events, patho };
+}
+
+/* ═══════════════════════════════════════════════
+   13. HIGHLIGHTING
+   ═══════════════════════════════════════════════ */
+
+const reOf = list => new RegExp(
+  '(' + [...list].sort((a, b) => b.length - a.length).map(esc).join('|') + ')', 'g'
+);
+
+const TOOTH_RE = /((?:右上|左上|右下|左下)(?:中門齒|側門齒|犬齒|(?:第[一二三]、)*第[一二三](?:大|小)臼齒))/g;
+const DATE_RE  = /(民國\d+年\d+月\d+日|當日)/g;
+const ADM_RE   = /(住院|出院)/g;
+const SOFT_RE  = reOf(
+  SOFT_SITES.flatMap(n => ['', ...SIDE_DIRS].flatMap(a => ['', ...VERT_DIRS].map(b => a + b + n)))
+);
+const DIAG_RE    = reOf(ALL_DIAGS);
+const SURG_RE    = reOf(Object.values(SURG_CODES).map(c => c.hlText || c.label));
+const IMG_RE     = reOf(IMG_TYPES.flatMap(t => ['自費' + t, t]));
+const STD_MATS   = ['膠原蛋白及骨粉', '膠原蛋白', '骨粉', 'PRF'];
+const STD_MAT_RE = reOf(STD_MATS);
+
+const hl  = t => `<span class="hl">${t}</span>`;
+const hli = t => `<span class="hl-i">${t}</span>`;
+const hlp = t => `<span class="hl-p">${t}</span>`;
+const hla = t => `<span class="hl-a">${t}</span>`;
+
+const hlDiag = t => t
+  .replace(TOOTH_RE, hl)
+  .replace(SOFT_RE,  hl)
+  .replace(DIAG_RE,  hl)
+  .replace(/\n/g, '<br>');
+
+function hlReport(t, matLabels, patho) {
+  let r = t
+    .replace(DATE_RE,  hl)
+    .replace(IMG_RE,   hli)
+    .replace(TOOTH_RE, hl)
+    .replace(SOFT_RE,  hl)
+    .replace(SURG_RE,  hl)
+    .replace(ADM_RE,   hla);
+
+  if (matLabels.some(m => STD_MATS.includes(m))) r = r.replace(STD_MAT_RE, hl);
+  matLabels.filter(m => !STD_MATS.includes(m))
+           .forEach(m => { r = r.replace(new RegExp(esc(m), 'g'), hl); });
+
+  if (patho) r = r.replace(/病理報告證實/g, hlp);
+  return r;
+}
+
+function setBoxHTML(id, html) {
+  const box = document.getElementById(id);
+  const btn = box.querySelector('.copy-btn');
+  box.innerHTML = html;
+  if (btn) box.appendChild(btn);
+}
+
+/* ═══════════════════════════════════════════════
+   14. TIMELINE PREVIEW
+   ═══════════════════════════════════════════════ */
+
+const TL_TAG = {
+  visit: ['tag-v', '就診'],
+  img:   ['tag-i', '影像'],
+  adm:   ['tag-a', '住院'],
+  surg:  ['tag-s', '手術'],
+  dis:   ['tag-a', '出院'],
+  rem:   ['tag-r', '拆線'],
+  patho: ['tag-p', '病理'],
+};
+
+function renderTimeline(events, patho) {
+  const card = document.getElementById('tl-card');
+  const rows = [];
+
+  if (firstVisit) rows.push({ date: firstVisit, kind: 'visit', text: '初診就診' });
+  rows.push(...events);
+  if (patho) rows.push({ date: '', kind: 'patho', text: patho.replace(/。$/, '') });
+
+  if (!rows.length) { card.style.display = 'none'; return; }
+  card.style.display = '';
+
+  document.getElementById('tl-list').innerHTML = rows.map(r => {
+    const [cls, label] = TL_TAG[r.kind];
+    const same = firstVisit && r.date === firstVisit && r.kind !== 'visit';
+    const dateCell = r.date
+      ? `<div class="tl-date${same ? ' same' : ''}">${toROC(r.date)}${same ? '（當日）' : ''}</div>`
+      : `<div class="tl-date none">報告結果</div>`;
+    return `<div class="tl-row">
+      ${dateCell}
+      <div class="tl-txt"><span class="tl-tag ${cls}">${label}</span>${r.text}</div>
+    </div>`;
+  }).join('');
+}
+
+/* ═══════════════════════════════════════════════
+   15. MAIN UPDATE
+   ═══════════════════════════════════════════════ */
+
+function collectProblems() {
+  const problems = [];
+  if (!firstVisit) problems.push('尚未填寫「初診日期」。');
+
+  images.forEach((im, i) => {
+    if (!im.date) problems.push(`影像檢查 ${i+1}：尚未填寫檢查日期。`);
+    if (!im.type) problems.push(`影像檢查 ${i+1}：尚未選擇檢查種類。`);
+  });
+
+  const nameOf = t => isTooth(t.id) ? t.id : siteName(t.id);
+
+  surgeries.forEach((s, i) => {
+    const n = i + 1;
+    if (s.sites.size === 0) { problems.push(`手術 ${n}：尚未選擇部位。`); return; }
+
+    const blank = allSites(s).filter(t => !t.diagnosis && !(t.surgCodes || []).some(Boolean));
+    if (blank.length)
+      problems.push(`手術 ${n}：部位 ${blank.map(nameOf).join('、')} 尚未設定診斷或手術方式。`);
+
+    const blankCode = allSites(s).filter(t => (t.surgCodes || []).some(c => !c));
+    if (blankCode.length)
+      problems.push(`手術 ${n}：部位 ${blankCode.map(nameOf).join('、')} 已新增術式欄位但尚未選擇。`);
+
+    const blankExtra = allSites(s).filter(t => t.diagnosis2 === '' || t.patho === '');
+    if (blankExtra.length)
+      problems.push(`手術 ${n}：部位 ${blankExtra.map(nameOf).join('、')} 的「合併診斷」或「病理報告」尚未選擇診斷。`);
+
+    if (procSites(s).length) {
+      if (!s.date) problems.push(`手術 ${n}：尚未填寫手術日期。`);
+      if (!(s.mat && (s.mat !== 'custom' || s.customMat.trim())))
+        problems.push(`手術 ${n}：尚未選擇（或填寫）傷口修復材料。`);
+    }
+
+    if (s.inpatient) {
+      if (!s.admitDate)     problems.push(`手術 ${n}：已勾選住院，尚未填寫住院日期。`);
+      if (!s.dischargeDate) problems.push(`手術 ${n}：已勾選住院，尚未填寫出院日期。`);
+      if (s.admitDate && s.dischargeDate && s.dischargeDate < s.admitDate)
+        problems.push(`手術 ${n}：出院日期早於住院日期。`);
+    }
+  });
+
+  if (surgeries.some(s => s.sites.size) && !surgeries.some(s => diagSites(s).length))
+    problems.push('尚未設定任何診斷。');
+
+  return problems;
+}
+
+function update() {
+  const s = actS();
+
+  document.getElementById('custom-mat-wrap').classList.toggle('show', !!s && s.mat === 'custom');
+  document.getElementById('fv-hint').textContent = firstVisit ? `（${toROC(firstVisit)}）` : '';
+  document.getElementById('sd-hint').textContent =
+    (s && firstVisit && s.date === firstVisit) ? '＝初診日，文本顯示「當日」' : '';
+
+  const refDate = firstVisit || (s && s.date);
+  document.getElementById('yr-hint').textContent = refDate
+    ? `西元 ${+refDate.split('-')[0]} 年 = 民國 ${+refDate.split('-')[0] - 1911} 年`
+    : '';
+
+  const problems = collectProblems();
+  const anySite  = surgeries.some(sg => sg.sites.size > 0);
+  const ready    = problems.length === 0;
+
+  const warn = document.getElementById('warn-msg');
+  if (!ready && anySite) {
+    warn.innerHTML = '<strong>尚有欄位未完成</strong><ul>' + problems.map(p => `<li>${p}</li>`).join('') + '</ul>';
+    warn.style.display = '';
+  } else {
+    warn.style.display = 'none';
+  }
+
+  document.getElementById('empty-st').style.display    = anySite ? 'none' : 'flex';
+  document.getElementById('result-area').style.display = ready ? 'block' : 'none';
+
+  if (!ready) { renderTimeline(collectEvents(), ''); return; }
+
+  const res = buildReport();
+  if (!res) { document.getElementById('result-area').style.display = 'none'; return; }
+
+  document.getElementById('diag-box').dataset.plain   = res.diagText;
+  document.getElementById('report-box').dataset.plain = res.reportText;
+
+  setBoxHTML('diag-box',   hlDiag(res.diagText));
+  setBoxHTML('report-box', hlReport(res.reportText, res.matLabels, res.patho));
+
+  renderTimeline(res.events, res.patho);
+}
+
+/* ═══════════════════════════════════════════════
+   16. COPY
+   ═══════════════════════════════════════════════ */
+
+function cpBox(id, btn) {
+  const box  = document.getElementById(id);
+  const text = box.dataset.plain || box.innerText.replace('複製', '').trim();
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = '✓ 已複製';
+    btn.classList.add('ok');
+    setTimeout(() => { btn.textContent = '複製'; btn.classList.remove('ok'); }, 1600);
+  });
+}
+
+function cpAll() {
+  const d = document.getElementById('diag-box').dataset.plain   || '';
+  const r = document.getElementById('report-box').dataset.plain || '';
+  if (!d) return;
+  navigator.clipboard.writeText(d + '\n\n' + r).then(() => alert('已複製至剪貼簿'));
+}
+
+/* ═══════════════════════════════════════════════
+   17. INIT
+   ═══════════════════════════════════════════════ */
+
+(function init() {
+  firstVisit = todayStr();
+  document.getElementById('first-visit').value = firstVisit;
+  surgeries = [newSurgery(firstVisit)];
+  activeSid = surgeries[0].id;
+
+  renderImages();
+  renderSurgery();
+})();
+</script>
+</body>
+</html>
