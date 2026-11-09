@@ -64,11 +64,13 @@
       --t:             0.14s ease;
     }
 
+    :root { --fs: 1; --dn: 1; }
+
     body {
       font-family: var(--sans);
       background: var(--bg);
       color: var(--text);
-      font-size: 14px;
+      font-size: calc(14px * var(--fs));
       line-height: 1.5;
       min-height: 100vh;
       -webkit-font-smoothing: antialiased;
@@ -78,9 +80,8 @@
        HEADER
        ═══════════════════════════════════════════ */
     header {
-      max-width: 1500px;
-      margin: 0 auto;
-      padding: 16px 20px 0;
+      margin: 0;
+      padding: 8px 16px 0;
       display: flex;
       align-items: center;
       gap: 12px;
@@ -90,7 +91,7 @@
     }
     .brand { display: flex; align-items: center; gap: 12px; }
     .brand-mark {
-      width: 52px; height: 52px;
+      width: 38px; height: 38px;
       border-radius: 50%;
       background: #fff;
       color: var(--navy);
@@ -98,27 +99,27 @@
       box-shadow: 0 0 0 1px var(--line);
       flex-shrink: 0;
     }
-    .brand-mark svg { width: 26px; height: 26px; }
+    .brand-mark svg { width: 20px; height: 20px; }
     .brand h1 {
       font-family: var(--serif);
-      font-size: 22px;
+      font-size: calc(18px * var(--fs));
       font-weight: 700;
       color: var(--navy);
       letter-spacing: 1px;
-      line-height: 1.3;
+      line-height: 1.25;
     }
-    .brand p { font-size: 12px; color: var(--muted); margin-top: 2px; letter-spacing: 0.02em; }
+    .brand p { font-size: calc(11px * var(--fs)); color: var(--muted); margin-top: 0; letter-spacing: 0.02em; }
 
     .head-nav { margin-left: auto; display: flex; gap: 6px; }
     .nav-btn {
       font-family: inherit;
-      font-size: 14px;
+      font-size: calc(14px * var(--fs));
       color: var(--ink);
       background: var(--card);
       border: 1px solid var(--line);
       border-radius: 6px;
-      min-height: 40px;
-      padding: 0 16px;
+      min-height: calc(34px * var(--dn));
+      padding: 0 14px;
       cursor: pointer;
       transition: all var(--t);
       white-space: nowrap;
@@ -129,18 +130,53 @@
     /* ═══════════════════════════════════════════
        LAYOUT
        ═══════════════════════════════════════════ */
+    /* 三欄：左＝選部位、中＝診斷與術式、右＝即時預覽。
+       寬螢幕時各欄獨立捲動，預覽永遠在畫面上；欄寬可拖曳中間的分隔線調整 */
     .layout {
       display: grid;
-      grid-template-columns: minmax(0, 560px) minmax(0, 1fr);
-      gap: 14px;
-      max-width: 1500px;
-      margin: 14px auto;
-      padding: 0 20px 40px;
+      grid-template-columns: minmax(300px, 1.05fr) 10px minmax(280px, 0.82fr) 10px minmax(320px, 1.13fr);
+      gap: 0 2px;
+      margin: 8px 0 0;
+      padding: 0 16px;
       align-items: start;
     }
-    @media (max-width: 1000px) { .layout { grid-template-columns: 1fr; } }
+    .col { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+    .col > * { flex-shrink: 0; }
+    .split { align-self: stretch; cursor: col-resize; position: relative; border-radius: 4px; touch-action: none; }
+    .split::after {
+      content: ''; position: absolute; top: 8px; bottom: 8px; left: 50%; width: 2px; margin-left: -1px;
+      border-radius: 1px; background: transparent; transition: background var(--t);
+    }
+    .split:hover::after, .split.drag::after { background: var(--line); }
+    .split.drag::after { background: var(--orange); }
+    body.resizing { cursor: col-resize; user-select: none; }
 
-    .col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+    @media (min-width: 1100px) {
+      body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+      header { flex-shrink: 0; }
+      .layout { flex: 1; min-height: 0; align-items: stretch; }
+      .col { overflow-y: auto; overscroll-behavior: contain; padding: 0 2px 12px; scrollbar-width: thin; }
+    }
+    @media (max-width: 1099px) {
+      .layout { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important; gap: 12px; padding-bottom: 40px; }
+      .split { display: none; }
+      .col-a { grid-column: 1; grid-row: 1; }
+      .col-b { grid-column: 1; grid-row: 2; }
+      .col-prev { grid-column: 2; grid-row: 1 / span 2; position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow-y: auto; }
+    }
+    @media (max-width: 760px) {
+      .layout { grid-template-columns: minmax(0, 1fr) !important; }
+      .layout > .col, .col-prev { grid-column: 1 !important; grid-row: auto !important; position: static; max-height: none; }
+    }
+
+
+    /* 可複選的選項組：每格前加勾號 */
+    .seg.multi { display: flex; gap: 6px; border: 0; border-radius: 0; overflow: visible; background: none; }
+    .seg.multi button { border: 1px solid var(--line); border-radius: 6px; background: var(--card); }
+    .seg.multi button:first-child { border-left: 1px solid var(--line); }
+    .seg.multi button:hover { border-color: var(--navy); background: var(--card); }
+    .seg.multi button.on { border-color: var(--navy); background: var(--navy); }
+    .seg.multi button.on::before { content: '✓'; margin-right: 4px; font-weight: 700; }
 
     .page-narrow { max-width: 1500px; margin: 14px auto; padding: 0 20px 40px; }
 
@@ -155,11 +191,12 @@
     }
     .card-title {
       font-family: var(--sans);
-      font-size: 15px;
+      font-size: calc(14px * var(--fs));
       font-weight: 700;
       letter-spacing: 0;
       color: var(--navy);
-      padding: 12px 14px;
+      padding: calc(7px * var(--dn)) 12px;
+      min-height: calc(38px * var(--dn));
       border-bottom: 1px solid var(--hair);
       background: var(--card);
       display: flex;
@@ -171,14 +208,14 @@
     /* 圓形步驟號，與治療計劃單一致 */
     .step {
       display: inline-flex; align-items: center; justify-content: center;
-      width: 22px; height: 22px; border-radius: 11px;
+      width: 19px; height: 19px; border-radius: 10px;
       background: var(--navy); color: #fff;
-      font-size: 12px; font-weight: 700; flex-shrink: 0;
+      font-size: calc(11px * var(--fs)); font-weight: 700; flex-shrink: 0;
     }
     .step.alt  { background: var(--img); }
     .step.alt2 { background: var(--onc); }
     .card-title.t-img { color: var(--img); background: var(--card); }
-    .card-meta { font-weight: 400; letter-spacing: 0; color: var(--muted); font-size: 12px; }
+    .card-meta { font-weight: 400; letter-spacing: 0; color: var(--muted); font-size: calc(12px * var(--fs)); }
 
     /* ═══════════════════════════════════════════
        CONTROLS
@@ -187,11 +224,11 @@
     input[type="date"],
     input[type="text"] {
       width: 100%;
-      min-height: 36px;
+      min-height: calc(36px * var(--dn));
       padding: 7px 10px;
       border: 1px solid var(--line);
       border-radius: var(--radius-sm);
-      font-size: 14px;
+      font-size: calc(14px * var(--fs));
       color: var(--ink);
       background: var(--card);
       font-family: inherit;
@@ -210,10 +247,10 @@
     select:focus, input:focus { outline: 2px solid var(--pick-line); outline-offset: 2px; border-color: var(--navy); }
 
     .chip {
-      min-height: 32px;
+      min-height: calc(32px * var(--dn));
       padding: 0 12px;
       border-radius: 16px;
-      font-size: 13px;
+      font-size: calc(13px * var(--fs));
       font-weight: 500;
       cursor: pointer;
       border: 1px solid var(--line);
@@ -227,12 +264,12 @@
     .chip.red:hover { background: var(--wash); border-color: var(--signal); }
     .chip.soft      { border-style: dashed; color: var(--accent); }
     .chip.soft:hover{ background: var(--accent-light); border-color: var(--accent); }
-    .chip.tiny      { min-height: 28px; padding: 0 9px; font-size: 12px; }
+    .chip.tiny      { min-height: calc(28px * var(--dn)); padding: 0 9px; font-size: calc(12px * var(--fs)); }
 
     .btn {
       display: inline-flex; align-items: center; gap: 7px;
-      min-height: 40px; padding: 0 16px; border-radius: 6px;
-      font-size: 14px; font-weight: 700; font-family: inherit;
+      min-height: calc(40px * var(--dn)); padding: 0 16px; border-radius: 6px;
+      font-size: calc(14px * var(--fs)); font-weight: 700; font-family: inherit;
       cursor: pointer; border: 1px solid transparent; transition: all var(--t);
     }
     .btn svg     { width: 15px; height: 15px; }
@@ -241,15 +278,15 @@
     .btn-o       { background: var(--card); color: var(--ink); border-color: var(--line); font-weight: 500; }
     .btn-o:hover { border-color: var(--navy); }
 
-    .add-row { padding: 10px 14px; border-top: 1px solid var(--hair); background: var(--card); }
+    .add-row { padding: 8px 12px; border-top: 1px solid var(--hair); background: var(--card); }
     .add-btn {
       width: 100%;
-      min-height: 38px;
+      min-height: calc(38px * var(--dn));
       border-radius: 6px;
       border: 1px dashed var(--accent);
       background: var(--accent-light);
       color: var(--accent);
-      font-size: 13px;
+      font-size: calc(13px * var(--fs));
       font-weight: 700;
       font-family: inherit;
       cursor: pointer;
@@ -268,13 +305,13 @@
       border-radius: var(--radius-sm);
       background: var(--card);
       font-family: inherit;
-      font-size: 14px;
+      font-size: calc(14px * var(--fs));
       color: var(--ink);
       cursor: pointer;
       position: relative;
       transition: all var(--t);
       line-height: 1.4;
-      min-height: 36px;
+      min-height: calc(36px * var(--dn));
     }
     .picker-btn:hover { border-color: var(--navy); }
     .picker-btn.empty { color: var(--text-faint); }
@@ -290,7 +327,7 @@
     }
     .picker-btn:hover::after, .picker-btn.open::after { border-color: var(--primary); }
     .picker-btn .code {
-      font-size: 0.7rem; font-weight: 700; color: var(--text-faint);
+      font-size: calc(0.7rem * var(--fs)); font-weight: 700; color: var(--text-faint);
       margin-right: 5px;
     }
 
@@ -389,7 +426,7 @@
       color: var(--text-faint);
       width: 24px; height: 24px;
       border-radius: 6px;
-      font-size: 0.78rem;
+      font-size: calc(0.78rem * var(--fs));
       cursor: pointer;
       font-family: inherit;
       flex-shrink: 0;
@@ -402,7 +439,7 @@
       border: 1.5px solid var(--border);
       background: #fff;
       color: var(--text-muted);
-      font-size: 0.74rem;
+      font-size: calc(0.74rem * var(--fs));
       font-weight: 600;
       font-family: inherit;
       cursor: pointer;
@@ -426,7 +463,7 @@
     }
     .cat-sec-title {
       display: flex; align-items: center; gap: 9px;
-      font-size: 0.69rem; font-weight: 700; letter-spacing: 0.1em;
+      font-size: calc(0.69rem * var(--fs)); font-weight: 700; letter-spacing: 0.1em;
       color: var(--text-muted);
       margin-bottom: 8px;
     }
@@ -444,7 +481,7 @@
       border: 1.5px solid var(--border);
       background: #fff;
       font-family: inherit;
-      font-size: 0.83rem;
+      font-size: calc(0.83rem * var(--fs));
       font-weight: 600;
       color: var(--text);
       cursor: pointer;
@@ -461,7 +498,7 @@
     }
     .pick-card .code {
       display: block;
-      font-size: 0.67rem;
+      font-size: calc(0.67rem * var(--fs));
       font-weight: 700;
       color: var(--text-faint);
       letter-spacing: 0.04em;
@@ -478,13 +515,13 @@
       border: 1.5px solid var(--border);
       background: #fff;
       color: var(--text-muted);
-      font-size: 0.8rem; font-weight: 700; font-family: inherit;
+      font-size: calc(0.8rem * var(--fs)); font-weight: 700; font-family: inherit;
       cursor: pointer; transition: all var(--t);
     }
     .dir-chip:hover { border-color: var(--navy); }
     .dir-chip.on    { background: var(--navy); border-color: var(--navy); color: #fff; }
     .dir-preview {
-      font-size: 13px;
+      font-size: calc(13px * var(--fs));
       color: var(--text-muted);
       background: var(--wash);
       border: 1px solid var(--orange-tint);
@@ -492,14 +529,25 @@
       padding: 8px 11px;
       margin-bottom: 4px;
     }
-    .dir-preview b { color: var(--orange-deep); font-size: 14px; }
+    .dir-preview b { color: var(--orange-deep); font-size: calc(14px * var(--fs)); }
 
     /* ═══════════════════════════════════════════
        FORM
        ═══════════════════════════════════════════ */
-    .form-body { padding: 15px 18px; display: flex; flex-direction: column; gap: 13px; }
-    .fg { display: flex; flex-direction: column; gap: 5px; }
-    .fl { font-size: 0.78rem; font-weight: 600; color: var(--text-muted); }
+    .form-body { padding: calc(10px * var(--dn)) 12px; display: flex; flex-direction: column; gap: calc(9px * var(--dn)); }
+    /* 標籤在左、欄位在右，省下一行高度 */
+    .fg.row { display: grid; grid-template-columns: calc(78px * var(--fs)) minmax(0, 1fr); gap: 8px; align-items: center; }
+    .fg.row.top { align-items: start; }
+    .fg.row.top > .fl { padding-top: calc(7px * var(--dn)); }
+    .fg.row > .fl { line-height: 1.35; }
+    .hint.sub { display: block; margin: 2px 0 0 !important; font-weight: 500; }
+    .fg.row > div > .hint.sub { color: var(--accent); }
+    .chip.b-img { color: var(--img); border-color: var(--img); background: var(--img-light); }
+    hr.div.tight { margin: -2px 0; }
+    .prev-foot { font-size: calc(12px * var(--fs)); color: var(--muted); border-top: 1px solid var(--hair); padding-top: 8px; }
+    .prev-foot span { color: var(--navy); font-weight: 700; margin-left: 10px; }
+    .fg { display: flex; flex-direction: column; gap: calc(5px * var(--dn)); }
+    .fl { font-size: calc(0.78rem * var(--fs)); font-weight: 600; color: var(--text-muted); }
     .fl .req  { color: #e05050; }
     .fl .hint { font-weight: 500; color: var(--accent); margin-left: 4px; }
     hr.div { border: none; border-top: 1px solid var(--border); margin: 1px 0; }
@@ -511,7 +559,7 @@
       padding: 7px 10px;
       border: 1.5px solid var(--border);
       border-radius: var(--radius-sm);
-      font-size: 0.84rem;
+      font-size: calc(0.84rem * var(--fs));
       transition: all var(--t);
     }
     .ri:hover  { border-color: var(--primary); background: var(--primary-light); }
@@ -529,18 +577,18 @@
        ═══════════════════════════════════════════ */
     .tabs {
       display: flex; gap: 6px; flex-wrap: wrap;
-      padding: 10px 14px;
+      padding: 6px 12px;
       background: var(--panel);
       border-bottom: 1px solid var(--hair);
     }
     .tab {
       display: inline-flex; align-items: baseline; gap: 6px;
-      padding: 5px 12px;
+      padding: 3px 11px;
       border-radius: 18px;
       border: 1.5px solid var(--border);
       background: #fff;
       color: var(--text-muted);
-      font-size: 0.8rem; font-weight: 600; font-family: inherit;
+      font-size: calc(0.8rem * var(--fs)); font-weight: 600; font-family: inherit;
       cursor: pointer; transition: all var(--t);
     }
     .tab:hover { border-color: var(--navy); }
@@ -551,7 +599,7 @@
       font-weight: 700;
     }
     .tab.active .tab-sub { opacity: 0.8; }
-    .tab .tab-sub { font-size: 0.68rem; opacity: 0.72; font-weight: 500; }
+    .tab .tab-sub { font-size: calc(0.68rem * var(--fs)); opacity: 0.72; font-weight: 500; }
     .tab-add {
       border-style: dashed; border-color: var(--accent);
       color: var(--accent); background: var(--card);
@@ -561,17 +609,18 @@
     /* ═══════════════════════════════════════════
        DENTAL CHART（解剖牙形，同治療計劃單）
        ═══════════════════════════════════════════ */
-    .chart-wrap { padding: 14px 14px 6px; overflow-x: auto; }
+    .chart-wrap { padding: 8px 10px 2px; overflow-x: auto; }
     .chart-tray {
       background: var(--card);
       border: 1px solid var(--hair);
       border-radius: var(--radius);
-      padding: 10px 8px 8px;
+      padding: 6px 6px 4px;
+      overflow: hidden;
     }
     .chart-dirs {
       display: flex; justify-content: space-between;
-      font-size: 12px; font-weight: 700; color: var(--muted);
-      margin: 0 4px 6px;
+      font-size: calc(12px * var(--fs)); font-weight: 700; color: var(--muted);
+      margin: 0 4px 0;
     }
     .chart { display: flex; flex-direction: column; gap: 4px; align-items: center; width: max-content; margin: 0 auto; }
     .crow  { display: flex; gap: 8px; }
@@ -588,11 +637,11 @@
     }
     .tb:focus-visible { outline: 2px solid var(--orange); }
     .tb .no {
-      font-size: 12px; line-height: 16px; color: var(--muted);
+      font-size: calc(12px * var(--fs)); line-height: 16px; color: var(--muted);
       min-width: 16px; text-align: center; padding: 0 3px; border-radius: 8px;
       white-space: nowrap;
     }
-    .tb .no .wz { font-size: 9px; color: var(--wisdom); font-weight: 700; margin-left: 1px; vertical-align: 3px; }
+    .tb .no .wz { font-size: calc(9px * var(--fs)); color: var(--wisdom); font-weight: 700; margin-left: 1px; vertical-align: 3px; }
     .tb.pick .no { color: var(--orange-deep); font-weight: 700; }
     .tb .no.has { background: var(--navy); color: #fff; font-weight: 700; }   /* 已在其他次手術 */
     .tb .no.has .wz { color: #E8DCCB; }
@@ -608,8 +657,8 @@
     .tb .sel .g { stroke: #fff; }
 
     .chart-actions {
-      display: flex; gap: 7px; flex-wrap: wrap;
-      padding: 8px 14px 12px;
+      display: flex; gap: 6px; flex-wrap: wrap;
+      padding: 6px 10px 8px;
       align-items: center;
     }
 
@@ -619,9 +668,9 @@
     .region-block { border-top: 1px solid var(--hair); background: var(--card); }
     .region-block > summary {
       list-style: none; cursor: pointer;
-      padding: 10px 14px; min-height: 40px;
+      padding: 6px 12px; min-height: calc(34px * var(--dn));
       display: flex; align-items: center; gap: 8px;
-      font-size: 13px; font-weight: 700; color: var(--navy);
+      font-size: calc(13px * var(--fs)); font-weight: 700; color: var(--navy);
       user-select: none;
     }
     .region-block > summary::-webkit-details-marker { display: none; }
@@ -632,16 +681,16 @@
     }
     .region-block[open] > summary::before { transform: rotate(90deg) translateX(-2px); }
     .region-block > summary:hover { background: var(--panel); }
-    .rg-count { margin-left: auto; font-size: 12px; font-weight: 500; color: var(--muted); }
+    .rg-count { margin-left: auto; font-size: calc(12px * var(--fs)); font-weight: 500; color: var(--muted); }
     .rg-count.has { color: var(--orange-deep); font-weight: 700; }
-    .region-body { padding: 2px 14px 14px; }
+    .region-body { padding: 0 12px 10px; }
 
-    .hint { font-size: 12px; color: var(--muted); }
-    .lbl  { font-size: 12px; font-weight: 700; color: var(--muted); margin-top: 12px; }
+    .hint { font-size: calc(12px * var(--fs)); color: var(--muted); }
+    .lbl  { font-size: calc(12px * var(--fs)); font-weight: 700; color: var(--muted); margin-top: 12px; }
     .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
     .rg-pill {
-      font-family: inherit; font-size: 13px;
-      min-height: 32px; padding: 0 12px; border-radius: 16px;
+      font-family: inherit; font-size: calc(13px * var(--fs));
+      min-height: calc(32px * var(--dn)); padding: 0 12px; border-radius: 16px;
       border: 1px solid var(--line); background: var(--card); color: var(--ink);
       cursor: pointer; transition: all var(--t);
     }
@@ -675,7 +724,7 @@
     .mouth .sd.hov { opacity: 1; fill: var(--navy); }
     .mouth .mp {
       position: absolute; transform: translateY(-50%);
-      font-family: inherit; font-size: 12px; line-height: 1.2;
+      font-family: inherit; font-size: calc(12px * var(--fs)); line-height: 1.2;
       padding: 3px 9px; border-radius: 11px;
       border: 1px solid var(--line); background: #fff; color: var(--ink);
       white-space: nowrap; cursor: pointer;
@@ -683,11 +732,11 @@
     }
     .mouth .mp:hover, .mouth .mp.hov { border-color: var(--navy); box-shadow: 0 0 0 1px var(--navy); }
     .mouth .mp .mpc {
-      font-style: normal; font-size: 10px; font-weight: 700; line-height: 15px;
+      font-style: normal; font-size: calc(10px * var(--fs)); font-weight: 700; line-height: 15px;
       min-width: 15px; padding: 0 4px; border-radius: 8px; text-align: center;
       background: var(--orange); color: #fff;
     }
-    .rg-pill small { font-size: 11px; opacity: .85; margin-left: 2px; }
+    .rg-pill small { font-size: calc(11px * var(--fs)); opacity: .85; margin-left: 2px; }
 
     /* ═══ 圓盤選單 ═══ */
     .wheel-scrim { position: fixed; inset: 0; z-index: 69; background: transparent; }
@@ -719,7 +768,7 @@
     .wheel .sl.on path { fill: rgba(221, 107, 32, .62); }
     .wheel .sl.on:hover path { fill: rgba(185, 83, 31, .95); }
     .wheel .sl text {
-      fill: #fff; font-size: 12px; font-weight: 700; text-anchor: middle;
+      fill: #fff; font-size: calc(12px * var(--fs)); font-weight: 700; text-anchor: middle;
       font-family: var(--sans); pointer-events: none;
       paint-order: stroke; stroke: rgba(30, 39, 46, .35); stroke-width: 2.4px; stroke-linejoin: round;
     }
@@ -739,22 +788,22 @@
       background: var(--panel);
       border-top: 1px solid var(--hair);
       border-bottom: 1px solid var(--hair);
-      font-size: 12px; font-weight: 700;
+      font-size: calc(12px * var(--fs)); font-weight: 700;
       color: var(--muted);
     }
     .pt-row {
       display: grid;
-      grid-template-columns: 96px 1fr;
-      gap: 10px;
-      padding: 11px 18px;
+      grid-template-columns: calc(84px * var(--fs)) 1fr;
+      gap: 8px;
+      padding: calc(8px * var(--dn)) 12px;
       border-bottom: 1px solid var(--border);
     }
     .pt-row:last-child { border-bottom: none; }
     .pt-lbl  { display: flex; flex-direction: column; gap: 2px; padding-top: 5px; }
-    .pt-fdi  { font-size: 15px; font-weight: 700; color: var(--orange-deep); }
+    .pt-fdi  { font-size: calc(15px * var(--fs)); font-weight: 700; color: var(--orange-deep); }
     .pt-fdi.w::after {
       content: '智';
-      font-size: 0.56rem; font-weight: 800;
+      font-size: calc(0.56rem * var(--fs)); font-weight: 800;
       color: var(--wisdom);
       background: var(--wisdom-bg);
       border: 1px solid var(--wisdom-soft);
@@ -763,14 +812,14 @@
       margin-left: 4px;
       vertical-align: 3px;
     }
-    .pt-fdi.soft { font-size: 13px; color: var(--accent); line-height: 1.3; }
+    .pt-fdi.soft { font-size: calc(13px * var(--fs)); color: var(--accent); line-height: 1.3; }
     .pt-fdi.bone { color: var(--navy); }
-    .pt-name { font-size: 0.7rem; color: var(--text-muted); }
+    .pt-name { font-size: calc(0.7rem * var(--fs)); color: var(--text-muted); }
     .pt-del {
       align-self: flex-start;
       margin-top: 3px;
       border: none; background: none;
-      color: #b0868a; font-size: 0.72rem;
+      color: #b0868a; font-size: calc(0.72rem * var(--fs));
       cursor: pointer; padding: 0; font-family: inherit;
     }
     .pt-del:hover { color: var(--danger); text-decoration: underline; }
@@ -784,7 +833,7 @@
     }
     .pt-line.plain { grid-template-columns: 1fr; }
     .pt-tag {
-      font-size: 0.66rem; font-weight: 700;
+      font-size: calc(0.66rem * var(--fs)); font-weight: 700;
       padding: 4px 6px; border-radius: 4px;
       background: var(--primary-light);
       color: var(--primary);
@@ -796,7 +845,7 @@
     .mini {
       padding: 3px 9px;
       border-radius: 14px;
-      font-size: 0.72rem; font-weight: 700; font-family: inherit;
+      font-size: calc(0.72rem * var(--fs)); font-weight: 700; font-family: inherit;
       cursor: pointer;
       border: 1.5px dashed var(--border);
       background: #fff;
@@ -808,15 +857,15 @@
     .mini.p:hover { border-color: var(--img);     color: var(--img);     background: var(--img-light); }
     .x-btn {
       border: none; background: none;
-      color: #c08a80; font-size: 0.85rem;
+      color: #c08a80; font-size: calc(0.85rem * var(--fs));
       cursor: pointer; padding: 2px 4px; font-family: inherit;
       transition: color var(--t);
     }
     .x-btn:hover { color: var(--danger); }
 
     .empty-note {
-      padding: 14px 18px;
-      font-size: 0.8rem;
+      padding: 10px 12px;
+      font-size: calc(0.8rem * var(--fs));
       color: var(--text-muted);
       line-height: 1.6;
     }
@@ -828,14 +877,14 @@
     .img-row {
       display: grid;
       grid-template-columns: 168px 1fr auto auto;
-      gap: 8px; align-items: center;
-      padding: 10px 18px;
+      gap: 6px; align-items: center;
+      padding: 6px 12px;
       border-bottom: 1px solid var(--border);
     }
     .img-row:last-child { border-bottom: none; }
     .chk {
       display: inline-flex; align-items: center; gap: 5px;
-      font-size: 0.78rem; color: var(--text-muted);
+      font-size: calc(0.78rem * var(--fs)); color: var(--text-muted);
       white-space: nowrap; cursor: pointer;
       padding: 5px 9px;
       border: 1.5px solid var(--border);
@@ -849,32 +898,37 @@
     /* ═══════════════════════════════════════════
        PREVIEW
        ═══════════════════════════════════════════ */
-    .prev-body { padding: 18px; display: flex; flex-direction: column; gap: 15px; }
+    .prev-body { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 10px; }
     .prev-empty {
       display: flex; flex-direction: column; align-items: center;
-      justify-content: center; padding: 44px 20px;
+      justify-content: center; padding: 22px 16px;
       color: var(--text-muted); gap: 12px;
     }
     .prev-empty svg { width: 40px; height: 40px; opacity: 0.28; }
-    .prev-empty p   { font-size: 0.84rem; text-align: center; line-height: 1.7; }
+    .prev-empty p   { font-size: calc(0.84rem * var(--fs)); text-align: center; line-height: 1.7; }
 
     .prev-sect     { display: flex; flex-direction: column; gap: 6px; }
     .prev-sect-lbl {
-      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em;
+      font-size: calc(0.7rem * var(--fs)); font-weight: 700; letter-spacing: 0.1em;
       color: var(--text-muted);
     }
     .prev-box {
       background: var(--card);
       border: 1px solid var(--line);
       border-radius: 6px;
-      padding: 12px 50px 12px 14px;
-      font-size: 0.93rem;
-      line-height: 1.9;
+      padding: 8px 12px;
+      font-size: calc(0.93rem * var(--fs));
+      line-height: 1.8;
       color: var(--text);
       position: relative;
-      min-height: 46px;
+      min-height: calc(40px * var(--dn));
     }
     .prev-box.diag { font-weight: 700; color: var(--navy); }
+    /* 複製鈕移到標籤列右側，不蓋住文字 */
+    .prev-sect { position: relative; }
+    .prev-box .copy-btn { top: calc(-22px * var(--fs)); right: 0; padding: 0 8px; line-height: 1.6; }
+    .draft .prev-box { border-style: dashed; background: #FBFBFC; }
+    .draft .prev-sect-lbl::after { content: '　未完成・預覽中'; color: var(--signal); font-weight: 500; letter-spacing: 0; }
     .hl, .hl-i, .hl-p, .hl-a { border-radius: 3px; padding: 1px 3px; font-weight: 600; }
     .hl   { background: var(--pick-tint); }
     .hl-i { background: #DFD8EC; }
@@ -886,7 +940,7 @@
       position: absolute; top: 7px; right: 7px;
       background: var(--card); color: var(--muted);
       border: 1px solid var(--line); border-radius: 4px; padding: 2px 9px;
-      font-size: 12px; cursor: pointer; font-family: inherit;
+      font-size: calc(12px * var(--fs)); cursor: pointer; font-family: inherit;
       transition: all var(--t);
     }
     .copy-btn:hover { border-color: var(--navy); color: var(--ink); }
@@ -897,7 +951,7 @@
       border: 1px solid var(--orange-tint);
       border-radius: 6px;
       padding: 10px 12px;
-      font-size: 13px;
+      font-size: calc(13px * var(--fs));
       color: var(--signal);
       line-height: 1.6;
     }
@@ -913,19 +967,19 @@
       display: grid;
       grid-template-columns: 118px 1fr;
       gap: 10px;
-      padding: 8px 18px;
+      padding: 6px 12px;
       border-bottom: 1px solid var(--border);
-      font-size: 0.82rem;
+      font-size: calc(0.82rem * var(--fs));
       align-items: baseline;
     }
     .tl-row:last-child { border-bottom: none; }
-    .tl-date      { font-weight: 700; color: var(--navy); font-size: 12px; }
+    .tl-date      { font-weight: 700; color: var(--navy); font-size: calc(12px * var(--fs)); }
     .tl-date.same { color: var(--orange-deep); }
     .tl-date.none { color: var(--text-muted); font-weight: 600; }
     .tl-txt       { color: var(--text-muted); line-height: 1.5; }
     .tl-tag {
       display: inline-block;
-      font-size: 0.66rem; font-weight: 700;
+      font-size: calc(0.66rem * var(--fs)); font-weight: 700;
       padding: 1px 6px; border-radius: 4px;
       margin-right: 6px; vertical-align: 1px;
     }
@@ -943,39 +997,54 @@
     /* 小選項組（取代下拉選單）：高度與其他控制項一致 */
     .seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--card); }
     .seg button {
-      font-family: inherit; font-size: 13px; color: var(--ink);
-      min-height: 34px; padding: 0 12px; border: 0; border-left: 1px solid var(--hair);
+      font-family: inherit; font-size: calc(13px * var(--fs)); color: var(--ink);
+      min-height: calc(34px * var(--dn)); padding: 0 10px; border: 0; border-left: 1px solid var(--hair);
       background: transparent; cursor: pointer; transition: background var(--t);
     }
     .seg button:first-child { border-left: 0; }
     .seg button:hover { background: var(--panel); }
     .seg button.on { background: var(--navy); color: #fff; font-weight: 700; }
 
-    .ev-inline { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-height: 36px; }
+    .ev-inline { display: flex; align-items: center; gap: 6px 8px; flex-wrap: wrap; min-height: calc(36px * var(--dn)); }
     .ev-inline > .fl, .ev-inline > .ip-sub { margin: 0; min-width: 64px; }
-    .ev-fields { display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .ev-fields { display: inline-flex; align-items: center; gap: 6px 8px; flex-wrap: wrap; }
     input[type="date"].ev-date { width: 156px; flex-shrink: 0; }
 
-    .ev-addbar { padding: 12px 14px; background: var(--panel); border-bottom: 1px solid var(--hair); display: flex; flex-direction: column; gap: 6px; }
+    .ev-addbar { padding: 8px 12px; background: var(--panel); border-bottom: 1px solid var(--hair); display: flex; flex-direction: column; gap: 6px; }
     .ev-addrow { display: flex; align-items: center; gap: 8px; }
-    .ev-addrow .picker-btn { min-height: 36px; }
-    .btn.ev-add { min-height: 36px; padding: 0 14px; flex-shrink: 0; }
+    .ev-addrow .picker-btn { min-height: calc(36px * var(--dn)); }
+    .btn.ev-add { min-height: calc(36px * var(--dn)); padding: 0 14px; flex-shrink: 0; }
 
-    .ev-list { padding: 4px 14px 14px; display: flex; flex-direction: column; gap: 8px; }
+    .ev-list { padding: 8px 10px 10px; display: flex; flex-direction: column; gap: 6px; }
     .ev { border: 1px solid var(--line); border-radius: 6px; background: var(--card); }
     .ev-warn { border-color: var(--orange-tint); background: #FFFBF8; }
     .ev-new { animation: evNew 1.2s ease; }
     @keyframes evNew { from { background: var(--wash); } to { background: var(--card); } }
-    .ev-h { display: flex; align-items: center; gap: 8px; padding: 8px 10px; }
-    .ev-h .picker-btn { min-height: 36px; font-weight: 700; }
-    .ev-b { padding: 2px 12px 12px; display: flex; flex-direction: column; gap: 8px; border-top: 1px dashed var(--hair); }
-    .ev-b .ip-sub { margin: 6px 0 -2px; }
-    .ev-b .ev-inline .ip-sub { margin: 0; }
+    .ev-h { display: flex; align-items: center; gap: 8px; padding: 6px 8px; }
+    .ev-h .picker-btn { min-height: calc(36px * var(--dn)); font-weight: 700; }
+    .ev-b { padding: 6px 10px 8px; display: flex; flex-direction: column; gap: 5px; border-top: 1px dashed var(--hair); }
+    .evr { display: grid; grid-template-columns: calc(64px * var(--fs)) minmax(0, 1fr); gap: 8px; align-items: start; }
+    .evr > .ip-sub { margin: 0; padding-top: calc(6px * var(--dn)); line-height: 1.3; }
+    .evr-c { display: flex; flex-wrap: wrap; gap: 4px 5px; align-items: center; min-width: 0; }
+    .evr-c > .ip-neck { flex-basis: 100%; }
+    .evr.xr { margin-top: 6px; }
+    .evr.xr .chips { margin: 0; }
+    .evr.xr .rg-pill { min-height: calc(28px * var(--dn)); padding: 0 10px; font-size: calc(12.5px * var(--fs)); }
+    .ip-type { font-size: calc(12.5px * var(--fs)) !important; }
+    .evr-grp { display: flex; flex-wrap: wrap; gap: 4px 5px; align-items: center; flex-basis: 100%; }
+    .evr-g { font-size: calc(11px * var(--fs)); color: var(--text-faint); min-width: calc(58px * var(--fs)); }
+    .evr-in { flex: 1 1 140px; min-height: calc(28px * var(--dn)) !important; font-size: calc(12.5px * var(--fs)) !important; padding: 0 8px !important; }
+    .ev-b .rg-pill { min-height: calc(27px * var(--dn)); padding: 0 9px; font-size: calc(12.5px * var(--fs)); border-radius: 14px; }
+    .ev-b .tog, .ev-b .seg button { min-height: calc(28px * var(--dn)); font-size: calc(12.5px * var(--fs)); }
+    .ev-b .seg button { padding: 0 9px; }
     .ip-neck { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; }
 
     /* 日期欄位：可輸入民國日期，或由下拉月曆選取 */
     .dwrap { position: relative; display: inline-flex; align-items: center; width: 100%; }
-    .dwrap.ev-date { width: 168px; flex-shrink: 0; }
+    .dwrap.ev-date { width: calc(136px * var(--fs)); flex-shrink: 0; }
+    .dwrap.ev-date .dfield { padding-left: 9px; padding-right: 30px; }
+    .dwrap.ev-date .dbtn, .two-col .dwrap .dbtn { right: 3px; }
+    .two-col .dwrap .dfield { padding-left: 9px; padding-right: 30px; }
     .dwrap .dfield { padding-right: 36px; font-variant-numeric: tabular-nums; letter-spacing: .02em; }
     .dwrap .dfield.bad { border-color: var(--signal); background: var(--wash); }
     .dwrap.open .dfield { border-color: var(--navy); outline: 2px solid var(--pick-line); outline-offset: 1px; }
@@ -990,15 +1059,15 @@
     .dp { padding: 10px 10px 8px; }
     .dp-head { display: flex; align-items: center; gap: 4px; margin-bottom: 6px; }
     .dp-nav, .dp-title { border: 0; background: none; border-radius: 6px; cursor: pointer; font-family: inherit; color: var(--ink); }
-    .dp-nav { width: 32px; height: 32px; font-size: 18px; color: var(--muted); }
-    .dp-title { flex: 1; height: 32px; font-size: 14px; font-weight: 700; }
+    .dp-nav { width: 32px; height: 32px; font-size: calc(18px * var(--fs)); color: var(--muted); }
+    .dp-title { flex: 1; height: 32px; font-size: calc(14px * var(--fs)); font-weight: 700; }
     .dp-nav:hover, .dp-title:hover, .dp-title.on { background: var(--panel); }
     .dp-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
     .dp-grid.y, .dp-grid.m { grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 4px 0; }
-    .dp-wd { text-align: center; font-size: 11px; color: var(--text-faint); padding: 4px 0 2px; }
+    .dp-wd { text-align: center; font-size: calc(11px * var(--fs)); color: var(--text-faint); padding: 4px 0 2px; }
     .dp-d {
       height: 32px; border: 0; border-radius: 6px; background: none; cursor: pointer;
-      font-family: inherit; font-size: 13px; color: var(--ink); font-variant-numeric: tabular-nums;
+      font-family: inherit; font-size: calc(13px * var(--fs)); color: var(--ink); font-variant-numeric: tabular-nums;
     }
     .dp-grid.y .dp-d, .dp-grid.m .dp-d { height: 40px; }
     .dp-d:hover { background: var(--panel); }
@@ -1006,9 +1075,9 @@
     .dp-d.today { box-shadow: inset 0 0 0 1px var(--navy); }
     .dp-d.on { background: var(--navy); color: #fff; font-weight: 700; }
     .dp-foot { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--hair); }
-    .dp-foot button { border: 0; background: none; font-family: inherit; font-size: 12px; color: var(--navy); cursor: pointer; padding: 4px 8px; border-radius: 5px; }
+    .dp-foot button { border: 0; background: none; font-family: inherit; font-size: calc(12px * var(--fs)); color: var(--navy); cursor: pointer; padding: 4px 8px; border-radius: 5px; }
     .dp-foot button:hover { background: var(--panel); }
-    .dp-hint { font-size: 11px; color: var(--text-faint); }
+    .dp-hint { font-size: calc(11px * var(--fs)); color: var(--text-faint); }
 
     /* 下拉式彈窗（事件、選項、日期、牙位）：由欄位往下展開 */
     .side-panel.drop {
@@ -1027,13 +1096,13 @@
     @keyframes dropUpOut { to { opacity: 0; transform: translateY(4px); } }
     .side-panel.drop .panel-body { padding: 10px 12px 12px; gap: 10px; }
     .side-panel.drop .pick-grid { grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 6px; }
-    .side-panel.drop .pick-card { padding: 8px 10px; font-size: 13px; }
+    .side-panel.drop .pick-card { padding: 8px 10px; font-size: calc(13px * var(--fs)); }
 
     /* 多生牙 */
     .sup-row { align-self: stretch; display: flex; justify-content: space-between; }
     .sp {
-      font-family: inherit; font-size: 12px; color: var(--muted);
-      min-height: 26px; padding: 0 10px; border-radius: 13px;
+      font-family: inherit; font-size: calc(12px * var(--fs)); color: var(--muted);
+      min-height: calc(26px * var(--dn)); padding: 0 10px; border-radius: 13px;
       border: 1px dashed #8A9696; background: var(--card); cursor: pointer; transition: all var(--t);
     }
     .sp:hover { border-color: var(--navy); color: var(--ink); }
@@ -1042,7 +1111,7 @@
 
     /* 牙位圖彈窗 */
     .teeth-pop .chart { margin: 4px auto 0; }
-    .teeth-sum { font-size: 13px; color: var(--muted); margin-top: 10px; }
+    .teeth-sum { font-size: calc(13px * var(--fs)); color: var(--muted); margin-top: 10px; }
     .teeth-sum b { color: var(--orange-deep); }
 
     .ip-sec {
@@ -1054,12 +1123,12 @@
     .ip-sec.s-stg { border-left-color: var(--img); }
     .ip-sec.s-op  { border-left-color: var(--onc); }
     .ip-sec.s-tf  { border-left-color: var(--signal); }
-    .ip-sec-t { font-size: 14px; font-weight: 700; color: var(--navy); display: flex; align-items: center; gap: 8px; }
-    .ip-sub   { font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: -4px; }
+    .ip-sec-t { font-size: calc(14px * var(--fs)); font-weight: 700; color: var(--navy); display: flex; align-items: center; gap: 8px; }
+    .ip-sub   { font-size: calc(12px * var(--fs)); font-weight: 700; color: var(--muted); margin-bottom: -4px; }
     .ip-row   { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .tog {
-      font-family: inherit; font-size: 13px;
-      min-height: 32px; padding: 0 12px; border-radius: 16px;
+      font-family: inherit; font-size: calc(13px * var(--fs));
+      min-height: calc(32px * var(--dn)); padding: 0 12px; border-radius: 16px;
       border: 1px solid var(--line); background: var(--card); color: var(--ink);
       cursor: pointer; transition: all var(--t);
       display: inline-flex; align-items: center; gap: 6px;
@@ -1076,13 +1145,13 @@
     .ip-chk { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
     .ip-chk .tog { font-weight: 700; }
     .ip-off { opacity: .45; pointer-events: none; }
-    .ip-note { font-size: 12px; color: var(--muted); }
-    .ip-type { min-height: 36px; }
+    .ip-note { font-size: calc(12px * var(--fs)); color: var(--muted); }
+    .ip-type { min-height: calc(30px * var(--dn)); padding: 0 10px; }
     .ip-type[disabled] { opacity: .5; cursor: not-allowed; }
-    .ip-type small { font-size: 11px; color: var(--text-faint); margin-left: 4px; }
+    .ip-type small { font-size: calc(11px * var(--fs)); color: var(--text-faint); margin-left: 4px; }
     .site-chip {
       display: inline-flex; align-items: center; gap: 4px;
-      font-size: 13px; font-weight: 700; color: var(--orange-deep);
+      font-size: calc(13px * var(--fs)); font-weight: 700; color: var(--orange-deep);
       background: var(--pick-bg); border: 1px solid var(--orange-deep);
       border-radius: 14px; padding: 2px 4px 2px 10px;
     }
@@ -1093,9 +1162,11 @@
        PRINT
        ═══════════════════════════════════════════ */
     @media print {
-      header, .col:first-child, .act-row, .warn-box, #tl-card,
+      header, .col-a, .col-b, .split, .act-row, .warn-box, #tl-card, #ip-tl-card,
       .side-panel, .panel-scrim { display: none !important; }
+      body      { height: auto !important; overflow: visible !important; display: block !important; }
       .layout   { display: block; margin: 0; padding: 20px; }
+      .col      { overflow: visible !important; }
       .card     { box-shadow: none; border: none; }
       .prev-box { background: none; border: none; padding: 0; }
       .copy-btn { display: none; }
@@ -1131,35 +1202,28 @@
      ══════════════════════════════════════════════ -->
 <div class="layout" id="page-op">
 
-  <div class="col">
+  <div class="col col-a">
 
-    <!-- ① 就診資訊 -->
+    <!-- ① 就診與影像 -->
     <div class="card">
-      <div class="card-title"><span><i class="step">1</i>就診資訊</span></div>
+      <div class="card-title"><span><i class="step">1</i>就診與影像</span><span class="card-meta" id="img-count"></span></div>
       <div class="form-body">
-        <div class="fg">
-          <label class="fl">初診日期 <span class="req">*</span><span class="hint" id="fv-hint"></span></label>
+        <div class="fg row">
+          <label class="fl">初診日期 <span class="req">*</span><span class="hint" id="fv-hint" hidden></span></label>
           <div id="first-visit-field"></div>
         </div>
-      </div>
-    </div>
-
-    <!-- ② 影像診斷 -->
-    <div class="card">
-      <div class="card-title t-img">
-        <span><i class="step alt">2</i>影像診斷</span>
-        <span class="card-meta" id="img-count"></span>
+        <div class="fg row">
+          <label class="fl">影像診斷</label>
+          <div><button class="chip tiny b-img" onclick="addImage()">＋ 新增影像</button></div>
+        </div>
       </div>
       <div id="img-list"></div>
-      <div class="add-row">
-        <button class="add-btn b-img" onclick="addImage()">＋ 新增影像診斷</button>
-      </div>
     </div>
 
-    <!-- ③ 手術紀錄 -->
+    <!-- ② 手術部位 -->
     <div class="card">
       <div class="card-title">
-        <span><i class="step">3</i>手術紀錄</span>
+        <span><i class="step">2</i>手術部位</span>
         <span class="card-meta" id="surg-count"></span>
       </div>
 
@@ -1172,51 +1236,57 @@
         </div>
       </div>
 
-      <details class="region-block" id="soft-block">
-        <summary>軟組織、鼻竇、顳顎關節<span class="rg-count" id="soft-count"></span></summary>
-        <div class="region-body" id="soft-pick"></div>
-      </details>
-
       <div class="chart-actions">
-        <button class="chip" onclick="quickSelPreset([{fdi:18,surgCode:'92014'},{fdi:48,surgCode:'92016'}])">右側智齒</button>
-        <button class="chip" onclick="quickSelPreset([{fdi:28,surgCode:'92014'},{fdi:38,surgCode:'92016'}])">左側智齒</button>
-        <button class="chip red" onclick="clearSites()">✕ 清除本次部位</button>
+        <button class="chip tiny" onclick="quickSelPreset([{fdi:18,surgCode:'92014'},{fdi:48,surgCode:'92016'}])">右側智齒</button>
+        <button class="chip tiny" onclick="quickSelPreset([{fdi:28,surgCode:'92014'},{fdi:38,surgCode:'92016'}])">左側智齒</button>
+        <button class="chip tiny red" onclick="clearSites()">✕ 清除本次部位</button>
         <span style="flex:1"></span>
         <button class="chip red tiny" id="del-surg-btn" onclick="delSurgery()">刪除此次手術</button>
       </div>
 
-      <div class="pt-head">各部位設定 — 同一部位可加多個術式，文本以「及」串接</div>
-      <div id="pt-list"></div>
-
-      <div class="form-body" id="surg-form"></div>
-
-      <div class="add-row">
-        <button class="add-btn" onclick="addSurgery()">＋ 新增手術</button>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title"><span>重設</span></div>
-      <div class="form-body">
-        <button class="chip red" onclick="resetAll()">清除全部資料並重新開始</button>
-      </div>
+      <details class="region-block" id="soft-block">
+        <summary>軟組織、鼻竇、顳顎關節<span class="rg-count" id="soft-count"></span></summary>
+        <div class="region-body" id="soft-pick"></div>
+      </details>
     </div>
 
   </div>
 
-  <div class="col">
+  <div class="split" data-i="0" title="拖曳調整欄寬，雙擊還原"></div>
+
+  <div class="col col-b">
+
+    <!-- ③ 診斷與術式 -->
+    <div class="card">
+      <div class="card-title">
+        <span><i class="step">3</i>診斷與術式</span>
+        <span class="card-meta" id="surg-count2"></span>
+      </div>
+      <div id="pt-list"></div>
+    </div>
+
+    <!-- ④ 手術資訊 -->
+    <div class="card">
+      <div class="card-title"><span><i class="step">4</i>手術資訊</span></div>
+      <div class="form-body" id="surg-form"></div>
+    </div>
+
+  </div>
+
+  <div class="split" data-i="1" title="拖曳調整欄寬，雙擊還原"></div>
+
+  <div class="col col-prev">
 
     <div class="card">
-      <div class="card-title"><span>診斷書預覽</span></div>
+      <div class="card-title"><span>診斷書預覽</span>
+        <button type="button" class="chip red tiny" onclick="resetAll()" title="清除本頁全部資料">清除重來</button>
+      </div>
       <div class="prev-body">
-
         <div class="prev-empty" id="empty-st">
           <svg><use href="#i-tooth"/></svg>
-          <p>點選上方牙位圖選擇部位，<br>完成各部位診斷設定後，<br>診斷書文本將即時顯示於此</p>
+          <p>點選左側牙位圖選擇部位，<br>於中間設定診斷與術式，<br>診斷書文本即時顯示於此</p>
         </div>
-
         <div class="warn-box" id="warn-msg" style="display:none"></div>
-
         <div id="result-area" style="display:none">
           <div class="prev-sect">
             <div class="prev-sect-lbl">診斷</div>
@@ -1224,13 +1294,13 @@
               <button class="copy-btn" onclick="cpBox('diag-box',this)">複製</button>
             </div>
           </div>
-          <div class="prev-sect" style="margin-top:14px">
+          <div class="prev-sect">
             <div class="prev-sect-lbl">診斷書文本</div>
             <div class="prev-box" id="report-box">
               <button class="copy-btn" onclick="cpBox('report-box',this)">複製</button>
             </div>
           </div>
-          <div class="act-row" style="margin-top:14px">
+          <div class="act-row">
             <button class="btn btn-p" onclick="cpAll()">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
@@ -1243,21 +1313,13 @@
             </button>
           </div>
         </div>
-
+        <div class="prev-foot">西元年 − 1911 ＝ 民國年<span id="yr-hint"></span></div>
       </div>
     </div>
 
     <div class="card" id="tl-card" style="display:none">
       <div class="card-title"><span>事件時序</span></div>
       <div id="tl-list"></div>
-    </div>
-
-    <div class="card">
-      <div class="card-title"><span>民國年換算</span></div>
-      <div style="padding:11px 18px; font-size:0.85rem; color:var(--text-muted)">
-        西元年 − 1911 = 民國年 &nbsp;
-        <span id="yr-hint" style="color:var(--primary); font-weight:700"></span>
-      </div>
     </div>
 
   </div>
@@ -1268,24 +1330,20 @@
      ══════════════════════════════════════════════ -->
 <div class="layout" id="page-ip" style="display:none">
 
-  <div class="col">
+  <div class="col col-a">
 
     <div class="card">
-      <div class="card-title"><span><i class="step">1</i>手術種類</span></div>
+      <div class="card-title"><span><i class="step">1</i>手術種類與腫瘤部位</span><span class="card-meta" id="ip-site-count"></span></div>
       <div class="form-body">
-        <div class="chips" id="ip-types" style="margin-top:0"></div>
-        <div class="hint">先選手術種類，再依流程點選本次住院做了哪些事。</div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title"><span><i class="step">2</i>就診與腫瘤部位</span><span class="card-meta" id="ip-site-count"></span></div>
-      <div class="form-body">
-        <div class="fg">
-          <label class="fl">初診日期 <span class="req">*</span><span class="hint" id="ip-fv-hint"></span></label>
+        <div class="fg row top">
+          <label class="fl">手術種類</label>
+          <div class="chips" id="ip-types" style="margin-top:0"></div>
+        </div>
+        <div class="fg row">
+          <label class="fl">初診日期 <span class="req">*</span><span class="hint" id="ip-fv-hint" hidden></span></label>
           <div id="ip-fv-field"></div>
         </div>
-        <div class="fg">
+        <div class="fg row top">
           <label class="fl">腫瘤部位 <span class="req">*</span></label>
           <div class="chips" id="ip-sites" style="margin-top:0"></div>
         </div>
@@ -1300,33 +1358,35 @@
       </details>
     </div>
 
+  </div>
+
+  <div class="split" data-i="0" title="拖曳調整欄寬，雙擊還原"></div>
+
+  <div class="col col-b">
+
     <div class="card">
-      <div class="card-title"><span><i class="step">3</i>病理診斷與初診切片</span></div>
+      <div class="card-title"><span><i class="step">2</i>病理診斷與初診切片</span></div>
       <div class="form-body" id="ip-bxp"></div>
     </div>
 
     <div class="card">
-      <div class="card-title"><span><i class="step alt2">4</i>治療經過</span><span class="card-meta" id="ip-ev-count"></span></div>
+      <div class="card-title"><span><i class="step alt2">3</i>治療經過</span><span class="card-meta" id="ip-ev-count"></span></div>
       <div class="ev-addbar">
         <div class="ev-addrow" id="ip-add"></div>
-        <div class="hint">選日期與事件後按「＋ 新增」，下方清單自動依日期排序。</div>
       </div>
       <div class="ev-list" id="ip-events"></div>
     </div>
 
-    <div class="card">
-      <div class="card-title"><span>重設</span></div>
-      <div class="form-body">
-        <button class="chip red" onclick="ipReset()">清除住院資料並重新開始</button>
-      </div>
-    </div>
-
   </div>
 
-  <div class="col">
+  <div class="split" data-i="1" title="拖曳調整欄寬，雙擊還原"></div>
+
+  <div class="col col-prev">
 
     <div class="card">
-      <div class="card-title"><span>診斷書預覽</span></div>
+      <div class="card-title"><span>診斷書預覽</span>
+        <button type="button" class="chip red tiny" onclick="ipReset()" title="清除本頁全部資料">清除重來</button>
+      </div>
       <div class="prev-body">
         <div class="warn-box" id="ip-warn" style="display:none"></div>
         <div id="ip-result" style="display:none">
@@ -1336,13 +1396,13 @@
               <button class="copy-btn" onclick="cpBox('ip-diag-box',this)">複製</button>
             </div>
           </div>
-          <div class="prev-sect" style="margin-top:14px">
+          <div class="prev-sect">
             <div class="prev-sect-lbl">診斷書文本</div>
             <div class="prev-box" id="ip-report-box">
               <button class="copy-btn" onclick="cpBox('ip-report-box',this)">複製</button>
             </div>
           </div>
-          <div class="act-row" style="margin-top:14px">
+          <div class="act-row">
             <button class="btn btn-p" onclick="ipCpAll()">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
@@ -1419,6 +1479,9 @@ const SURG_CODES = {
   'LATW':  { label:'上顎竇側窗手術', hasFlap:true },
   'CALD':  { label:'考德威爾手術',   hasFlap:true },
 
+  'PFLAP': { label:'牙周翻瓣手術', hasFlap:false },
+  'PBG':   { label:'牙周補骨手術', hasFlap:false },
+
   'EXBX':  { label:'切除式切片', hasFlap:false },
   'BX':    { label:'切片',       hasFlap:false },
 };
@@ -1427,6 +1490,7 @@ const SURG_GROUPS = [
   { group:'拔牙・齒切除',   codes:['92016','92015','92014','92063'] },
   { group:'囊腫・根尖',     codes:['CYST','APIC'] },
   { group:'骨・再生處置',   codes:['ALV','PRES','GBR','GTR'] },
+  { group:'牙周手術',       codes:['PFLAP','PBG'] },
   { group:'上顎竇相關',     codes:['SINUS','LATW','CALD'] },
   { group:'切片（不翻瓣）', codes:['EXBX','BX'] },
 ];
@@ -1435,7 +1499,8 @@ const DIAG_GROUPS = [
   { group:'阻生・萌發',   items:['阻生','水平阻生','完全骨埋伏阻生','多生牙'] },
   { group:'囊腫・腫瘤',   items:['含齒囊腫','根尖囊腫','黏液囊腫','骨瘤'] },
   { group:'植體相關',     items:['植體周圍炎','植體斷裂'] },
-  { group:'齒質・上顎竇', items:['牙齒垂直斷裂','異物或牙齒掉陷入上顎竇'] },
+  { group:'齒質・上顎竇', items:['殘根','斷裂','牙齒垂直斷裂','異物或牙齒掉陷入上顎竇'] },
+  { group:'黏膜病變',     items:['疣狀增生','疑似口腔癌'] },
   { group:'一般牙科',     items:['齒列不正','蛀牙','嚴重牙周病'] },
 ];
 const ALL_DIAGS = DIAG_GROUPS.flatMap(g => g.items);
@@ -1449,6 +1514,8 @@ const SURG_DEFAULT_DIAG = {
   'CYST':  '含齒囊腫',
   'APIC':  '根尖囊腫',
   'SINUS': '異物或牙齒掉陷入上顎竇',
+  'PFLAP': '嚴重牙周病',
+  'PBG':   '嚴重牙周病',
 };
 
 
@@ -1516,7 +1583,7 @@ function newSurgery(date) {
     sites: new Set(),
     cfg: {},
     date: date || firstVisit || todayStr(),
-    mat: '',
+    mats: [],          // 傷口修復材料（可多選）；'none' = 僅縫合，'custom' = 自訂
     customMat: '',
     removalDate: '',
     inpatient: false,
@@ -1669,11 +1736,18 @@ function renderChart() {
 }
 
 // 寬度不足時整張牙位圖等比縮小
+// 牙位圖依欄寬等比縮放（用 transform，Safari 與 Chrome 結果一致，不會凸出外框）
 function fitChart() {
   const c = document.getElementById('chart'); if (!c) return;
-  c.style.zoom = 1;
-  const a = c.parentElement.clientWidth, w = c.scrollWidth;
-  if (a > 0 && w > a) c.style.zoom = Math.max(0.4, (a - 2) / w);
+  const t = c.parentElement, cs = getComputedStyle(t);
+  c.style.transform = ''; c.style.margin = '';
+  const avail = t.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+  const w = c.offsetWidth, h = c.offsetHeight;
+  if (!(avail > 0) || !w) return;
+  const k = Math.max(0.4, Math.min(1, avail / w));
+  c.style.transformOrigin = '0 0';
+  c.style.transform = k < 1 ? `scale(${k})` : '';
+  c.style.margin = `0 0 ${-(h * (1 - k)).toFixed(1)}px ${((avail - w * k) / 2).toFixed(1)}px`;
 }
 window.addEventListener('resize', fitChart);
 
@@ -1728,11 +1802,11 @@ function artPick(o) {
 // 圖外部位（鼻竇、關節、唾液腺）：按鈕＋圓盤選側別
 function extraChips(o, list) {
   const cats = [...new Set(list.map(e => e[0]))];
-  return cats.map(c => `<div class="lbl">${c}</div><div class="chips">` + list.filter(e => e[0] === c).map(([, n]) => {
+  return cats.map(c => `<div class="evr xr"><span class="ip-sub">${c}</span><div class="evr-c">` + list.filter(e => e[0] === c).map(([, n]) => {
     const sel = grpSelected(o, n).map(s => s.replace(n, '') || s);
     return `<button type="button" class="rg-pill more${sel.length ? ' on' : ''}" data-grp="${o.pre}${n}" `
          + `onclick="artClick(event,'${o.key}','${n}')">${n}${sel.length ? `<small>（${sel.join('、')}）</small>` : ''}</button>`;
-  }).join('') + '</div>').join('');
+  }).join('') + '</div></div>').join('');
 }
 
 /* 滑過主結構（骨區、標籤、引線）：該結構輪廓加粗，其餘同步標示 */
@@ -1867,20 +1941,20 @@ const chipsOf = (names, pre, has, act) =>
 
 function softPickHTML(has, act, key) {
   const o = { key, W: 420, H: 360, LX: 96, RX: 324, art: MOUTH_ART, map: MOUTH_MAP, groups: SOFT_GROUPS,
-              dots: MOUTH_DOTS, pre: 's:', has, act };
-  return `<div class="hint">圖的左邊是病人的右側。點部位名稱可再選細部，也可直接選整體。</div>`
+              dots: MOUTH_DOTS, pre: 's:', has, act, maxW: 390 };
+  return `<div class="hint">圖左＝病人右側。點名稱可選細部，或直接選整體。</div>`
        + artPick(o) + extraChips(o, SOFT_EXTRA);
 }
 
 function bonePickHTML(has, act, key) {
-  return `<div class="hint">圖的左邊是病人的右側。點骨頭或名稱可再選細部，也可直接選整塊骨頭。</div>`
+  return `<div class="hint">圖左＝病人右側。點骨頭或名稱可選細部，或直接選整塊骨頭。</div>`
        + `<div class="lbl">顏面骨正面</div>`
        + artPick(Object.assign({ key: key + '-skull', art: SKULL_ART, map: SKULL_MAP, groups: SKULL_GROUPS,
-                                 hit: SKULL_HIT, tint: SKULL_TINT, pre: 'b:', has, act, maxW: 480 }, ART_CFG.skull))
+                                 hit: SKULL_HIT, tint: SKULL_TINT, pre: 'b:', has, act, maxW: 410 }, ART_CFG.skull))
        + `<div class="lbl">下顎骨（全景展開）</div>`
        + artPick(Object.assign({ key: key + '-mand', art: MAND_ART, map: MAND_MAP, groups: MAND_GROUPS,
-                                 hit: MAND_HIT, tint: MAND_TINT, pre: 'b:', has, act, maxW: 540 }, ART_CFG.mand))
-       + `<div class="lbl">其他</div>` + chipsOf(BONE_EXTRA, 'b:', has, act);
+                                 hit: MAND_HIT, tint: MAND_TINT, pre: 'b:', has, act, maxW: 480 }, ART_CFG.mand))
+       + `<div class="evr xr"><span class="ip-sub">其他</span><div class="evr-c">${chipsOf(BONE_EXTRA, 'b:', has, act)}</div></div>`;
 }
 
 function setRegionCount(el, n) {
@@ -1941,7 +2015,7 @@ const CAL_ICON = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" str
 function dateIn(val, onchange, cls, id) {
   return `<span class="dwrap ${cls || ''}"><input type="text" class="dfield"${id ? ` id="${id}"` : ''} `
        + `value="${isoToRoc(val)}" data-iso="${val || ''}" data-onchange="${escAttr(onchange)}" `
-       + `placeholder="民國 年/月/日" autocomplete="off" inputmode="numeric" `
+       + `placeholder="民國年/月/日" autocomplete="off" inputmode="numeric" `
        + `onfocus="dpOpen(this)" oninput="dpInput(this)" onkeydown="dpKey(event,this)" onblur="dpCommit(this)">`
        + `<button type="button" class="dbtn" tabindex="-1" aria-label="開啟月曆" onmousedown="event.preventDefault()" `
        + `onclick="dpOpen(this.previousElementSibling, true)">${CAL_ICON}</button></span>`;
@@ -2041,6 +2115,9 @@ function renderTabs() {
 
   document.getElementById('surg-count').textContent =
     surgeries.length > 1 ? `共 ${surgeries.length} 次手術` : '';
+  const ai = surgeries.findIndex(s => s.id === activeSid);
+  document.getElementById('surg-count2').textContent =
+    ai >= 0 ? `手術 ${ai + 1}${surgeries[ai].date ? '．' + shortDate(surgeries[ai].date) : ''}` : '';
   document.getElementById('del-surg-btn').style.display =
     surgeries.length > 1 ? '' : 'none';
 }
@@ -2562,15 +2639,23 @@ function setSurgField(key, val) {
   update();
 }
 
-const MAT_OPTS = [['膠原蛋白', '膠原蛋白'], ['骨粉', '骨粉'], ['膠原蛋白及骨粉', '膠原蛋白及骨粉'], ['PRF', 'PRF'],
-                  ['none', '無（僅縫合）'], ['custom', '自訂']];
+const MAT_LIST = ['膠原蛋白', '骨粉', 'PRF', '再生膜', '人工皮'];
+const MAT_OPTS = MAT_LIST.map(m => [m, m]).concat([['custom', '自訂'], ['none', '無（僅縫合）']]);
 
-function setMat(v) {
+// 材料可複選；「無（僅縫合）」與其他材料互斥
+function toggleMat(v) {
   const s = actS(); if (!s) return;
-  s.mat = v;
+  if (v === 'none') s.mats = s.mats.includes('none') ? [] : ['none'];
+  else {
+    const m = s.mats.filter(x => x !== 'none');
+    s.mats = m.includes(v) ? m.filter(x => x !== v) : m.concat(v);
+  }
   syncSurgForm();
   update();
 }
+const matNames = s => MAT_LIST.filter(m => s.mats.includes(m))
+  .concat(s.mats.includes('custom') && s.customMat.trim() ? [s.customMat.trim()] : []);
+const matDone = s => s.mats.includes('none') || matNames(s).length > 0;
 
 function toggleInpatient() {
   const s = actS(); if (!s) return;
@@ -2594,30 +2679,29 @@ function renderFirstVisit() {
 function syncSurgForm() {
   const s = actS(); if (!s) return;
   document.getElementById('surg-form').innerHTML = `
-    <div class="fg">
-      <label class="fl">手術日期 <span class="req">*</span><span class="hint" id="sd-hint"></span></label>
-      ${dateIn(s.date, "setSurgField('date',this.value)")}
+    <div class="fg row">
+      <label class="fl">手術日期 <span class="req">*</span></label>
+      <div>${dateIn(s.date, "setSurgField('date',this.value)")}<span class="hint sub" id="sd-hint"></span></div>
     </div>
-    <hr class="div">
-    <div class="fg">
-      <label class="fl">傷口修復材料 <span class="req">*</span></label>
-      ${seg(MAT_OPTS, s.mat, v => `setMat('${v}')`)}
-      <div class="cw${s.mat === 'custom' ? ' show' : ''}" id="custom-mat-wrap">
-        <input type="text" id="custom-mat" value="${escAttr(s.customMat || '')}" placeholder="請輸入材料名稱…" oninput="setSurgField('customMat',this.value)">
+    <div class="fg row top">
+      <label class="fl">修復材料 <span class="req">*</span><span class="hint sub">可複選</span></label>
+      <div>
+        ${segMulti(MAT_OPTS, s.mats, v => `toggleMat('${v}')`)}
+        <div class="cw${s.mats.includes('custom') ? ' show' : ''}" id="custom-mat-wrap">
+          <input type="text" id="custom-mat" value="${escAttr(s.customMat || '')}" placeholder="請輸入材料名稱…" oninput="setSurgField('customMat',this.value)">
+        </div>
       </div>
     </div>
-    <hr class="div">
-    <div class="fg">
+    <div class="fg row">
       <label class="fl">住院</label>
       <div class="ev-inline">${togBtn(s.inpatient, '本次手術需住院', 'toggleInpatient()')}</div>
-      ${s.inpatient ? `<div class="two-col">
-        <div class="fg"><label class="fl">住院日期 <span class="req">*</span></label>${dateIn(s.admitDate, "setSurgField('admitDate',this.value)")}</div>
-        <div class="fg"><label class="fl">出院日期 <span class="req">*</span></label>${dateIn(s.dischargeDate, "setSurgField('dischargeDate',this.value)")}</div>
-      </div>` : ''}
     </div>
-    <hr class="div">
-    <div class="fg">
-      <label class="fl">拆線日期（選填）</label>
+    ${s.inpatient ? `<div class="fg row">
+      <label class="fl">住／出院 <span class="req">*</span></label>
+      <div class="two-col">${dateIn(s.admitDate, "setSurgField('admitDate',this.value)")}${dateIn(s.dischargeDate, "setSurgField('dischargeDate',this.value)")}</div>
+    </div>` : ''}
+    <div class="fg row">
+      <label class="fl">拆線日期 <span class="hint sub">選填</span></label>
       ${dateIn(s.removalDate, "setSurgField('removalDate',this.value)")}
     </div>`;
 }
@@ -2652,7 +2736,7 @@ function renderImages() {
     images.length ? `共 ${images.length} 項檢查` : '';
 
   if (!images.length) {
-    list.innerHTML = `<div class="empty-note">尚未加入影像檢查 — 需要時請點擊下方「新增影像診斷」。</div>`;
+    list.innerHTML = '';
     return;
   }
 
@@ -2740,8 +2824,8 @@ function surgeryClause(s) {
   else if (!flapG.length && noFlapG.length) proc = '進行' + join(noFlapG);
   else                                      proc = flapPrefix + join(flapG) + '，並進行' + join(noFlapG);
 
-  const matLabel = s.mat === 'custom' ? s.customMat.trim() : s.mat;
-  const wound = (s.mat === 'none' || !matLabel)
+  const matLabel = joinZh(matNames(s));
+  const wound = (s.mats.includes('none') || !matLabel)
     ? '，術後縫合傷口'
     : `，術後傷口以${matLabel}修補並縫合`;
 
@@ -2823,8 +2907,7 @@ function buildReport() {
 
   const matLabels = surgeries
     .filter(s => procSites(s).length)
-    .map(s => s.mat === 'custom' ? s.customMat.trim() : s.mat)
-    .filter(m => m && m !== 'none');
+    .flatMap(s => s.mats.includes('none') ? [] : matNames(s));
 
   return { diagText, reportText, matLabels, events, patho };
 }
@@ -2848,7 +2931,7 @@ const SOFT_RE  = reOf(
 const DIAG_RE    = reOf(ALL_DIAGS);
 const SURG_RE    = reOf(Object.values(SURG_CODES).map(c => c.hlText || c.label));
 const IMG_RE     = reOf(IMG_TYPES.flatMap(t => ['自費' + t, t]));
-const STD_MATS   = ['膠原蛋白及骨粉', '膠原蛋白', '骨粉', 'PRF'];
+const STD_MATS   = MAT_LIST;
 const STD_MAT_RE = reOf(STD_MATS);
 
 const hl  = t => `<span class="hl">${t}</span>`;
@@ -2957,7 +3040,7 @@ function collectProblems() {
 
     if (procSites(s).length) {
       if (!s.date) problems.push(`手術 ${n}：尚未填寫手術日期。`);
-      if (!(s.mat && (s.mat !== 'custom' || s.customMat.trim())))
+      if (!matDone(s))
         problems.push(`手術 ${n}：尚未選擇（或填寫）傷口修復材料。`);
     }
 
@@ -2978,14 +3061,15 @@ function collectProblems() {
 function update() {
   const s = actS();
 
-  document.getElementById('custom-mat-wrap').classList.toggle('show', !!s && s.mat === 'custom');
+  const cmw = document.getElementById('custom-mat-wrap');
+  if (cmw) cmw.classList.toggle('show', !!s && s.mats.includes('custom'));
   document.getElementById('fv-hint').textContent = firstVisit ? `（${toROC(firstVisit)}）` : '';
   document.getElementById('sd-hint').textContent =
-    (s && firstVisit && s.date === firstVisit) ? '＝初診日，文本顯示「當日」' : '';
+    (s && firstVisit && s.date === firstVisit) ? '同初診日，文本寫「當日」' : '';
 
   const refDate = firstVisit || (s && s.date);
   document.getElementById('yr-hint').textContent = refDate
-    ? `西元 ${+refDate.split('-')[0]} 年 = 民國 ${+refDate.split('-')[0] - 1911} 年`
+    ? `西元 ${+refDate.split('-')[0]} ＝ 民國 ${+refDate.split('-')[0] - 1911} 年`
     : '';
 
   const problems = collectProblems();
@@ -3001,12 +3085,14 @@ function update() {
   }
 
   document.getElementById('empty-st').style.display    = anySite ? 'none' : 'flex';
-  document.getElementById('result-area').style.display = ready ? 'block' : 'none';
-
-  if (!ready) { renderTimeline(collectEvents(), ''); return; }
-
-  const res = buildReport();
-  if (!res) { document.getElementById('result-area').style.display = 'none'; return; }
+  // 未完成也先顯示目前的文本（虛線框標示），點選時即可看到文字變化
+  let res = null;
+  try { res = anySite ? buildReport() : null; } catch (e) { res = null; }
+  if (res && !res.diagText.replace('診斷：', '').trim() && !res.reportText.trim()) res = null;
+  const ra = document.getElementById('result-area');
+  ra.style.display = res ? 'block' : 'none';
+  ra.classList.toggle('draft', !ready);
+  if (!res) { renderTimeline(collectEvents(), ''); return; }
 
   document.getElementById('diag-box').dataset.plain   = res.diagText;
   document.getElementById('report-box').dataset.plain = res.reportText;
@@ -3374,59 +3460,51 @@ const pill = (on, label, onclick) =>
   `<button type="button" class="rg-pill${on ? ' on' : ''}" aria-pressed="${on}" onclick="${onclick}">${label}</button>`;
 const seg = (opts, val, mk) =>       // 小選項組（取代下拉）：opts = [[值, 顯示]]
   `<div class="seg">${opts.map(([v, t]) => `<button type="button" class="${v === val ? 'on' : ''}" onclick="${mk(v)}">${t}</button>`).join('')}</div>`;
+const segMulti = (opts, arr, mk) =>  // 可複選的選項組
+  `<div class="seg multi">${opts.map(([v, t]) => `<button type="button" class="${arr.includes(v) ? 'on' : ''}" aria-pressed="${arr.includes(v)}" onclick="${mk(v)}">${t}</button>`).join('')}</div>`;
 const choiceBtn = (label, set, val, cb, args, extra) =>
   `<button type="button" class="picker-btn${label ? '' : ' empty'}"${extra || ''} `
   + `onclick='openChoice(this, ${JSON.stringify(set)}, ${JSON.stringify(val)}, ${JSON.stringify(cb)}${args.map(a => ', ' + JSON.stringify(a)).join('')})'>${label || '請選擇…'}</button>`;
 
+// 事件內容：標籤在左、選項在右，一列一項
+const evRow = (label, html, cls) =>
+  `<div class="evr${cls ? ' ' + cls : ''}"><span class="ip-sub">${label}</span><div class="evr-c">${html}</div></div>`;
+
 function ipEventBody(e) {
-  if (e.kind === 'stg') return `
-    <div class="ip-sub">檢查項目</div>
-    <div class="chips">${STAGING_EXAMS.map(x => pill(e.exams.includes(x), x, `ipToggleIn(${e.id},'exams','${x}')`)).join('')}</div>`;
-  if (e.kind === 'tf') return `
-    <div class="ev-inline"><span class="ip-sub">時機</span>${seg([['病房', '病房'], ['術中', '手術中']], e.where, v => `ipSet('ev','where','${v}',${e.id})`)}
-      <span class="ip-note">${e.where === '術中' ? '同日有手術時併入手術句：…術中接受輸血' : '文本：於病房接受輸血'}</span></div>`;
-  if (e.kind === 'addop') return `
-    <div class="ip-sub">診斷</div>
-    <div class="chips">${ADDOP_DX.map(x => pill(e.dx.includes(x), x, `ipToggleAddDx(${e.id},'${x}')`)).join('')}</div>
-    <input type="text" value="${escAttr(e.dxOther)}" placeholder="其他診斷（選填）" oninput="ipSetText('ev','dxOther',this.value,${e.id})">
-    <div class="ip-sub">手術</div>
-    <div class="chips">${ADDOP_PROC.map(x => pill(e.procs.includes(x), x, `ipToggleIn(${e.id},'procs','${x}')`)).join('')}</div>
-    <input type="text" value="${escAttr(e.procOther)}" placeholder="其他術式（選填）" oninput="ipSetText('ev','procOther',this.value,${e.id})">
-    <div class="ev-inline"><span class="ip-sub">麻醉</span>${seg([['全身麻醉', '全身麻醉'], ['局部麻醉', '局部麻醉']], e.anes, v => `ipSet('ev','anes','${v}',${e.id})`)}</div>`;
+  if (e.kind === 'stg') return evRow('檢查項目',
+    STAGING_EXAMS.map(x => pill(e.exams.includes(x), x, `ipToggleIn(${e.id},'exams','${x}')`)).join(''));
+  if (e.kind === 'tf') return evRow('時機',
+    seg([['病房', '病房'], ['術中', '手術中']], e.where, v => `ipSet('ev','where','${v}',${e.id})`)
+    + `<span class="ip-note">${e.where === '術中' ? '同日有手術時併入手術句：…術中接受輸血' : '文本：於病房接受輸血'}</span>`);
+  if (e.kind === 'addop') return evRow('診斷',
+      ADDOP_DX.map(x => pill(e.dx.includes(x), x, `ipToggleAddDx(${e.id},'${x}')`)).join('')
+      + `<input type="text" class="evr-in" value="${escAttr(e.dxOther)}" placeholder="其他診斷（選填）" oninput="ipSetText('ev','dxOther',this.value,${e.id})">`)
+    + evRow('手術',
+      ADDOP_PROC.map(x => pill(e.procs.includes(x), x, `ipToggleIn(${e.id},'procs','${x}')`)).join('')
+      + `<input type="text" class="evr-in" value="${escAttr(e.procOther)}" placeholder="其他術式（選填）" oninput="ipSetText('ev','procOther',this.value,${e.id})">`)
+    + evRow('麻醉', seg([['全身麻醉', '全身麻醉'], ['局部麻醉', '局部麻醉']], e.anes, v => `ipSet('ev','anes','${v}',${e.id})`));
   if (e.kind !== 'op') return '';
   const autoSide = ipSideOf();
   const teethTxt = e.teeth.length ? joinZh(compressSites(e.teeth.slice())) : '';
-  return `
-    <div class="ip-sub">氣切</div>
-    <div class="chips">${togBtn(e.trach, '氣管切開術', `ipFlag('ev','trach',${e.id})`)}</div>
-
-    <div class="ip-sub">腫瘤切除</div>
-    <div class="chips">${RESECTIONS.map(r => pill(e.resect.includes(r), r, `ipToggleIn(${e.id},'resect','${r}')`)).join('')}</div>
-    ${e.resect.some(r => r !== '腫瘤廣泛性切除術' && r !== '拔牙') ? `
-    <div class="ev-inline"><span class="ip-sub">骨切除側別</span>
-      ${seg([['auto', '依腫瘤部位' + (autoSide ? '（' + autoSide + '）' : '')], ['右側', '右側'], ['左側', '左側'], ['雙側', '雙側'], ['none', '不標示']],
-            e.side, v => `ipSet('ev','side','${v}',${e.id})`)}</div>` : ''}
-    ${e.resect.includes('拔牙') ? `
-    <div class="ev-inline"><span class="ip-sub">拔除牙位</span>
-      <button type="button" id="teeth-btn-${e.id}" class="picker-btn${teethTxt ? '' : ' empty'}" style="flex:1"
-        onclick="ipOpenTeeth(this, ${e.id})">${teethTxt || '點選牙位圖…'}</button></div>` : ''}
-
-    <div class="ip-sub">頸部淋巴結處理</div>
-    <div class="chips">${togBtn(e.neckOn, '頸部淋巴廓清', `ipFlag('ev','neckOn',${e.id})`)}</div>
-    ${e.neckOn ? e.neck.map((n, i) => `
-    <div class="ip-neck">
-      ${seg(NECK_SIDES.map(x => [x, x]), n.side, v => `ipNeck(${e.id},${i},'side','${v}')`)}
-      ${choiceBtn(n.type, 'neckType', n.type, 'ipNeck', [e.id, i, 'type'])}
-      <button class="x-btn" title="移除" onclick="ipDelNeck(${e.id},${i})">✕</button>
-    </div>`).join('') + `<div><button class="mini" onclick="ipAddNeck(${e.id})">＋ 另一側／另一術式</button></div>` : ''}
-
-    <div class="ip-sub">重建</div>
-    ${RECON_GROUPS.map(gr => `<div class="ip-note">${gr.g}</div>
-    <div class="chips" style="margin-top:2px">${gr.items.map(it => pill(e.recon.includes(it.k), it.s, `ipToggleIn(${e.id},'recon','${it.k}')`)).join('')}</div>`).join('')}
-
-    <div class="ev-inline"><span class="ip-sub">術後觀察</span>
-      ${seg([['icu', '加護病房'], ['ward', '一般病房']], e.post, v => `ipSet('ev','post','${v}',${e.id})`)}
-      ${e.post === 'icu' ? '<span class="ip-note">轉出加護病房請另新增一筆處置</span>' : ''}</div>`;
+  return evRow('氣切', togBtn(e.trach, '氣管切開術', `ipFlag('ev','trach',${e.id})`))
+    + evRow('腫瘤切除', RESECTIONS.map(r => pill(e.resect.includes(r), r, `ipToggleIn(${e.id},'resect','${r}')`)).join(''))
+    + (e.resect.some(r => r !== '腫瘤廣泛性切除術' && r !== '拔牙') ? evRow('骨切除側別',
+        seg([['auto', '依腫瘤' + (autoSide ? '（' + autoSide + '）' : '')], ['右側', '右側'], ['左側', '左側'], ['雙側', '雙側'], ['none', '不標示']],
+            e.side, v => `ipSet('ev','side','${v}',${e.id})`)) : '')
+    + (e.resect.includes('拔牙') ? evRow('拔除牙位',
+        `<button type="button" id="teeth-btn-${e.id}" class="picker-btn${teethTxt ? '' : ' empty'}" style="flex:1"
+          onclick="ipOpenTeeth(this, ${e.id})">${teethTxt || '點選牙位圖…'}</button>`) : '')
+    + evRow('頸部淋巴', togBtn(e.neckOn, '頸部淋巴廓清', `ipFlag('ev','neckOn',${e.id})`)
+        + (e.neckOn ? e.neck.map((n, i) => `
+        <div class="ip-neck">
+          ${seg(NECK_SIDES.map(x => [x, x]), n.side, v => `ipNeck(${e.id},${i},'side','${v}')`)}
+          ${choiceBtn(n.type, 'neckType', n.type, 'ipNeck', [e.id, i, 'type'])}
+          <button class="x-btn" title="移除" onclick="ipDelNeck(${e.id},${i})">✕</button>
+        </div>`).join('') + `<button class="mini" onclick="ipAddNeck(${e.id})">＋ 另一側／另一術式</button>` : ''))
+    + evRow('重建', RECON_GROUPS.map(gr => `<div class="evr-grp"><span class="evr-g">${gr.g}</span>`
+        + gr.items.map(it => pill(e.recon.includes(it.k), it.s, `ipToggleIn(${e.id},'recon','${it.k}')`)).join('') + '</div>').join(''))
+    + evRow('術後觀察', seg([['icu', '加護病房'], ['ward', '一般病房']], e.post, v => `ipSet('ev','post','${v}',${e.id})`)
+        + (e.post === 'icu' ? '<span class="ip-note">轉出加護病房請另新增一筆事件</span>' : ''));
 }
 
 function ipRender() {
@@ -3453,14 +3531,14 @@ function ipRender() {
   // 3 病理診斷與初診切片
   const dxLabel = ip.dx === '__custom' ? '其他（自行輸入）' : ip.dx;
   document.getElementById('ip-bxp').innerHTML = `
-    <div class="fg"><label class="fl">病理診斷 <span class="req">*</span></label>
+    <div class="fg row"><label class="fl">病理診斷 <span class="req">*</span></label>
       ${choiceBtn(dxLabel, 'dx', ip.dx, 'ipSet', ['ip', 'dx'])}</div>
     ${ip.dx === '__custom' ? `<div class="fg"><input type="text" value="${ip.dxCustom}" placeholder="請輸入病理診斷…" oninput="ipSetText('ip','dxCustom',this.value)"></div>` : ''}
     <div class="ev-inline"><span class="fl">臨床分期</span>
       ${seg([['', '不填'], ['1', '第一期'], ['2', '第二期'], ['3', '第三期'], ['4', '第四期']], ip.stage, v => `ipSet('ip','stage','${v}')`)}</div>
     <div class="ev-inline">${togBtn(ip.neck.on, '頸部淋巴轉移', "ipFlag('neck','on')")}
       ${ip.neck.on ? seg(NECK_META_SIDES.map(x => [x, x]), ip.neck.side, v => `ipSet('neck','side','${v}')`) : ''}</div>
-    <hr class="div">
+    <hr class="div tight">
     <div class="ev-inline">${togBtn(ip.biopsy.on, '初診切片', "ipFlag('biopsy','on')")}
       <span class="ev-fields${ip.biopsy.on ? '' : ' ip-off'}">${dateIn(ip.biopsy.date, "ipSet('biopsy','date',this.value)", 'ev-date')}
       ${seg([['局部麻醉', '局部麻醉'], ['全身麻醉', '全身麻醉']], ip.biopsy.anes, v => `ipSet('biopsy','anes','${v}')`)}</span></div>
@@ -3511,9 +3589,11 @@ function ipUpdate() {
   const warn = document.getElementById('ip-warn');
   warn.style.display = ready ? 'none' : '';
   if (!ready) warn.innerHTML = '<strong>尚有欄位未完成</strong><ul>' + problems.map(p => `<li>${p}</li>`).join('') + '</ul>';
-  document.getElementById('ip-result').style.display = ready ? 'block' : 'none';
-
-  const res = ipBuild();
+  let res = null;
+  try { res = ipBuild(); } catch (e) { res = null; }
+  const ra = document.getElementById('ip-result');
+  ra.style.display = res ? 'block' : 'none';
+  ra.classList.toggle('draft', !ready);
   const events = res ? res.events : ipTexts();
   const rows = [];
   if (ip.firstVisit) rows.push({ date: ip.firstVisit, kind: 'visit', text: '初診就診' });
@@ -3526,7 +3606,7 @@ function ipUpdate() {
          + `<div class="tl-txt"><span class="tl-tag ${cls}">${label}</span>${r.text}</div></div>`;
   }).join('');
 
-  if (!ready || !res) return;
+  if (!res) return;
   document.getElementById('ip-diag-box').dataset.plain   = res.diagText;
   document.getElementById('ip-report-box').dataset.plain = res.reportText;
   setBoxHTML('ip-diag-box', res.diagText.replace(SOFT_RE, hl).replace(TOOTH_RE, hl).replace(reOf(ONC_DX), hl)
@@ -3560,6 +3640,66 @@ function ipCpAll() {
   ipInit();
   ipRender();
 })();
+
+/* ═══════════════════════════════════════════════
+   19. 三欄寬度 — 拖曳分隔線調整（記在本機瀏覽器）
+   ═══════════════════════════════════════════════ */
+const VIEW_KEY = 'oms-diag-view';
+const COL_DEF  = [1.05, 0.82, 1.13];   // 左：部位圖、中：設定（較窄）、右：預覽（較寬）
+let view = { cols: {} };
+try { const v = JSON.parse(localStorage.getItem(VIEW_KEY) || '{}'); if (v.v === 2 && v.cols) view.cols = v.cols; } catch (e) {}
+view.v = 2;
+const saveView = () => { try { localStorage.setItem(VIEW_KEY, JSON.stringify(view)); } catch (e) {} };
+
+function applyView() {
+  document.querySelectorAll('.layout').forEach(applyCols);
+  requestAnimationFrame(fitChart);
+}
+function applyCols(lay) {
+  const f = view.cols[lay.id] || COL_DEF;
+  lay.style.gridTemplateColumns =
+    `minmax(260px, ${f[0]}fr) 10px minmax(260px, ${f[1]}fr) 10px minmax(280px, ${f[2]}fr)`;
+}
+
+// 拖曳分隔線調整欄寬
+document.addEventListener('pointerdown', e => {
+  const sp = e.target.closest && e.target.closest('.split');
+  if (!sp) return;
+  e.preventDefault();
+  const lay = sp.parentElement, cols = [...lay.querySelectorAll(':scope > .col')];
+  const i = +sp.dataset.i, w = cols.map(c => c.getBoundingClientRect().width);
+  const total = w.reduce((a, b) => a + b, 0), x0 = e.clientX, MIN = 260;
+  closePicker(); closeWheel(true);
+  sp.classList.add('drag'); document.body.classList.add('resizing');
+  sp.setPointerCapture && sp.setPointerCapture(e.pointerId);
+  const move = ev => {
+    const pair = w[i] + w[i + 1];
+    const a = Math.min(Math.max(w[i] + ev.clientX - x0, MIN), pair - MIN);
+    const nw = w.slice(); nw[i] = a; nw[i + 1] = pair - a;
+    view.cols[lay.id] = nw.map(v => +(v / total * 3).toFixed(3));
+    applyCols(lay);
+    fitChart();
+  };
+  const up = () => {
+    sp.classList.remove('drag'); document.body.classList.remove('resizing');
+    window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up);
+    saveView();
+  };
+  window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+});
+document.addEventListener('dblclick', e => {
+  const sp = e.target.closest && e.target.closest('.split');
+  if (!sp) return;
+  delete view.cols[sp.parentElement.id];
+  applyCols(sp.parentElement); fitChart(); saveView();
+});
+// 牙位圖隨欄寬自動縮放
+if (window.ResizeObserver) {
+  let raf = 0;
+  const ro = new ResizeObserver(() => { cancelAnimationFrame(raf); raf = requestAnimationFrame(fitChart); });
+  const cw = document.querySelector('#page-op .chart-wrap'); if (cw) ro.observe(cw);
+}
+applyView();
 </script>
 </body>
 </html>
