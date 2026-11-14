@@ -1471,8 +1471,8 @@ const SURG_CODES = {
 
   'ALV':   { label:'齒槽骨整形術',   hasFlap:true },
   'PRES':  { label:'保存術',         hasFlap:true },
-  'GBR':   { label:'導引骨再生術',   hasFlap:true },
-  'GTR':   { label:'導引組織再生術', hasFlap:true },
+  'GBR':   { label:'導引骨再生手術',   hasFlap:true },
+  'GTR':   { label:'導引組織再生手術', hasFlap:false },
 
   'SINUS': { displayLabel:'移除陷入上顎竇之牙齒或異物',
              labelFn: t => `移除陷入上顎竇之${t}`, hlText:'移除陷入上顎竇之', hasFlap:true },
@@ -1481,6 +1481,7 @@ const SURG_CODES = {
 
   'PFLAP': { label:'牙周翻瓣手術', hasFlap:false },
   'PBG':   { label:'牙周補骨手術', hasFlap:false },
+  'PREG':  { label:'牙周再生手術', hasFlap:false },
 
   'EXBX':  { label:'切除式切片', hasFlap:false },
   'BX':    { label:'切片',       hasFlap:false },
@@ -1489,8 +1490,8 @@ const SURG_CODES = {
 const SURG_GROUPS = [
   { group:'拔牙・齒切除',   codes:['92016','92015','92014','92063'] },
   { group:'囊腫・根尖',     codes:['CYST','APIC'] },
-  { group:'骨・再生處置',   codes:['ALV','PRES','GBR','GTR'] },
-  { group:'牙周手術',       codes:['PFLAP','PBG'] },
+  { group:'齒槽骨處置',     codes:['ALV','PRES'] },
+  { group:'牙周手術',       codes:['PFLAP','PBG','PREG','GBR','GTR'] },
   { group:'上顎竇相關',     codes:['SINUS','LATW','CALD'] },
   { group:'切片（不翻瓣）', codes:['EXBX','BX'] },
 ];
@@ -1516,6 +1517,8 @@ const SURG_DEFAULT_DIAG = {
   'SINUS': '異物或牙齒掉陷入上顎竇',
   'PFLAP': '嚴重牙周病',
   'PBG':   '嚴重牙周病',
+  'PREG':  '嚴重牙周病',
+  'GTR':   '嚴重牙周病',
 };
 
 
