@@ -1245,7 +1245,7 @@
       </div>
 
       <details class="region-block" id="soft-block">
-        <summary>軟組織、鼻竇、顳顎關節<span class="rg-count" id="soft-count"></span></summary>
+        <summary>軟組織、上顎竇、顳顎關節<span class="rg-count" id="soft-count"></span></summary>
         <div class="region-body" id="soft-pick"></div>
       </details>
     </div>
@@ -1349,7 +1349,7 @@
         </div>
       </div>
       <details class="region-block" id="ip-soft-block" open>
-        <summary>軟組織、鼻竇、顳顎關節<span class="rg-count" id="ip-soft-count"></span></summary>
+        <summary>軟組織、上顎竇、顳顎關節<span class="rg-count" id="ip-soft-count"></span></summary>
         <div class="region-body" id="ip-soft-pick"></div>
       </details>
       <details class="region-block" id="ip-bone-block">
@@ -1476,22 +1476,22 @@ const SURG_CODES = {
 
   'SINUS': { displayLabel:'移除陷入上顎竇之牙齒或異物',
              labelFn: t => `移除陷入上顎竇之${t}`, hlText:'移除陷入上顎竇之', hasFlap:true },
-  'LATW':  { label:'上顎竇側窗手術', hasFlap:true },
+  'LATW':  { label:'側窗手術', hasFlap:true },
   'CALD':  { label:'考德威爾手術',   hasFlap:true },
 
   'PFLAP': { label:'牙周翻瓣手術', hasFlap:false },
-  'PBG':   { label:'牙周補骨手術', hasFlap:false },
   'PREG':  { label:'牙周再生手術', hasFlap:false },
+  'SLIFT': { label:'鼻竇增高術',   hasFlap:true },
+  'EXPO':  { label:'阻生齒暴露手術', hasFlap:true },
 
   'EXBX':  { label:'切除式切片', hasFlap:false },
   'BX':    { label:'切片',       hasFlap:false },
 };
 
 const SURG_GROUPS = [
-  { group:'拔牙・齒切除',   codes:['92016','92015','92014','92063'] },
+  { group:'拔牙・齒切除',   codes:['92016','92015','92014','92063','ALV','EXPO'] },
   { group:'囊腫・根尖',     codes:['CYST','APIC'] },
-  { group:'齒槽骨處置',     codes:['ALV','PRES'] },
-  { group:'牙周手術',       codes:['PFLAP','PBG','PREG','GBR','GTR'] },
+  { group:'牙周手術',       codes:['PFLAP','PREG','GTR','GBR','PRES','SLIFT'] },
   { group:'上顎竇相關',     codes:['SINUS','LATW','CALD'] },
   { group:'切片（不翻瓣）', codes:['EXBX','BX'] },
 ];
@@ -1516,8 +1516,8 @@ const SURG_DEFAULT_DIAG = {
   'APIC':  '根尖囊腫',
   'SINUS': '異物或牙齒掉陷入上顎竇',
   'PFLAP': '嚴重牙周病',
-  'PBG':   '嚴重牙周病',
   'PREG':  '嚴重牙周病',
+  'EXPO':  '阻生',
   'GTR':   '嚴重牙周病',
 };
 
@@ -1529,12 +1529,12 @@ const VH = 29;
 
 /* ── 軟組織部位圖（插畫取自治療計劃單，嘴唇調薄）──
    MOUTH_MAP＝主結構標籤；MOUTH_DOTS＝各細部位置；SOFT_GROUPS＝主結構→{整體, 細部}；
-   SOFT_EXTRA＝圖外部位（鼻竇、關節、唾液腺） */
+   SOFT_EXTRA＝圖外部位（上顎竇、關節、唾液腺） */
 const MOUTH_ART = '<path d="M 116.2 182.0C 108.8 117.6 145.6 53.2 191.6 39.4Q 201.7 34.8 210.0 43.1Q 218.3 34.8 228.4 39.4C 274.4 53.2 311.2 117.6 303.8 182.0C 309.4 246.4 274.4 314.5 210.0 327.4C 145.6 314.5 110.6 246.4 116.2 182.0Z" fill="#DE8E88" stroke="#5A3A38" stroke-width="1.6"/><path d="M 125.7 151.3C 131.4 99.6 162.1 55.5 196.6 46.0M 294.3 151.3C 288.6 99.6 257.9 55.5 223.4 46.0M 127.6 212.7C 133.4 262.5 164.0 308.5 210.0 320.0C 256.0 308.5 286.6 262.5 292.4 212.7" fill="none" stroke="#C97873" stroke-width="1" opacity=".7"/><path d="M127 182C121 122 154 64 210 54C266 64 299 122 293 182C299 244 266 306 210 318C154 306 121 244 127 182Z" fill="#F3C3BC" stroke="#5A3A38" stroke-width="1.2"/><path d="M150 170Q138 197 151 224M270 170Q282 197 269 224" fill="none" stroke="#E0938D" stroke-width="9" stroke-linecap="round"/><path d="M150 170Q138 197 151 224M270 170Q282 197 269 224" fill="none" stroke="#5A3A38" stroke-width=".7" opacity=".55"/><path d="M133 160Q128 196 134 232M287 160Q292 196 286 232" fill="none" stroke="#DDA29B" stroke-width="1.2"/><path d="M158 176Q210 150 262 176L258 214Q210 228 162 214Z" fill="#8E4A4A"/><ellipse cx="174" cy="200" rx="7" ry="11" fill="#EFB7A6" stroke="#5A3A38" stroke-width=".7"/><ellipse cx="246" cy="200" rx="7" ry="11" fill="#EFB7A6" stroke="#5A3A38" stroke-width=".7"/><path d="M164 178Q160 198 168 216M256 178Q260 198 252 216M182 182Q180 198 186 212M238 182Q240 198 234 212" fill="none" stroke="#5A3A38" stroke-width=".8" opacity=".7"/><path d="M148 170A62 98 0 0 1 272 170" fill="none" stroke="#EE9C98" stroke-width="30" stroke-linecap="round"/><path d="M159 168A51 84 0 0 1 261 168Q210 156 159 168Z" fill="#F6CEC6" stroke="#5A3A38" stroke-width=".8"/><path d="M210 100V152" stroke="#D9A29A" stroke-width="1.2" fill="none"/><ellipse cx="210" cy="95" rx="3" ry="4.5" fill="#EFB0A8"/><path d="M206 108q-12-2-20 4M214 108q12-2 20 4M206 118q-14-1-24 6M214 118q14-1 24 6M206 129q-13 0-23 6M214 129q13 0 23 6" fill="none" stroke="#DDA79F" stroke-width="1.3" stroke-linecap="round"/><path d="M159 168Q210 156 261 168Q262 176 258 181Q236 176 222 186Q219 204 210 204Q201 204 198 186Q184 176 162 181Q158 176 159 168Z" fill="#E9A39C" stroke="#5A3A38" stroke-width=".9"/><path d="M210 170V184" stroke="#D38A84" stroke-width="1" fill="none"/><g transform="translate(148.4 159.2) rotate(-86.0)"><rect x="-8.2" y="-6.0" width="16.5" height="12.0" rx="4.6" fill="#FFFCF5" stroke="#5A3A38" stroke-width=".9"/><path d="M-4.3 0H4.3M0 -2.9V2.9" stroke="#B9A79A" stroke-width=".8" fill="none" stroke-linecap="round"/></g><g transform="translate(150.6 141.9) rotate(-79.3)"><rect x="-8.9" y="-6.5" width="17.7" height="13.0" rx="4.9" fill="#FFFCF5" stroke="#5A3A38" stroke-width=".9"/><path d="M-4.6 0H4.6M0 -3.1V3.1" stroke="#B9A79A" stroke-width=".8" fill="none" stroke-linecap="round"/></g><g transform="translate(155.4 123.5) rotate(-71.2)"><rect x="-9.5" y="-6.8" width="19.0" height="13.5" rx="5.1" fill="#FFFCF5" stroke="#5A3A38" stroke-width=".9"/><path d="M-4.9 0H4.9M0 -3.2V3.2" stroke="#B9A79A" stroke-width=".8" fill="none" stroke-linecap="round"/></g><g transform="translate(162.2 107.5) rotate(-62.4)"><rect x="-6.6" y="-5.5" width="13.3" height="11.0" rx="4.2" fill="#FFFCF5" stroke="#5A3A38" stroke-width=".9"/><path d="M-2.7 0H2.7" stroke="#B9A79A" stroke-width=".8" fill="none" stroke-linecap="round"/></g><g transform="translate(169.4 96.0) rotate(-53.9)"><rect x="-6.6" y="-5.5" width="13.3" height="11.0" rx="4.2" fill="#FFFCF5" stroke="#5A3A38" stroke-width=".9"/><path d="M-2.7 0H2.7" stroke="#B9A79A" stroke-width=".8" fill="none" stroke-linecap="round"/></g><g transform="translate(178.9 85.3) rotate(-42.6)"><rect x="-6.6" y="-4.8" width="13.3" height="9.5" rx="3.6" fill="#FFFCF5" stroke="#5A3A38" stroke-width=".9"/></g><g transform="translate(189.5 77.5) rotate(-29.0)"><rect x="-5.7" y="-3.5" width="11.4" height="7.0" rx="2.7" fill="#FFFCF5" stroke="#5A3A38" stroke-width=".9"/></g><g transform="translate(202.2 72.8) rotate(-11.3)"><rect x="-7.6" y="-3.8" width="15.2" height="7.5" rx="2.9" fill="#FFFCF5" stroke="#5A3A38" stroke-width=".9"/></g><g transform="translate(218.3 72.9) rotate(12.0)"><rect x="-7.6" y="-3.8" width="15.2" height="7.5" rx="2.9" fill="#FFFCF5" stroke="#5A3A38" stroke-width=".9"/></g><g transform="translate(231.0 77.8) rotate(29.6)"><rect x="-5.7" y="-3.5" width="11.4" height="7.0" rx="2.7" fill="#FFFCF5" stroke="#5A3A38" stroke-width=".9"/></g><g transform="translate(241.6 85.6) rotate(43.1)"><rect x="-6.6" y="-4.8" width="13.3" height="9.5" rx="3.6" fill="#FFFCF5" stroke="#5A3A38" stroke-width=".9"/></g><g transform="translate(251.0 96.5) rotate(54.3)"><rect x="-6.6" y="-5.5" width="13.3" height="11.0" rx="4.2" fill="#FFFCF5" stroke="#5A3A38" stroke-width=".9"/><path d="M-2.7 0H2.7" stroke="#B9A79A" stroke-width=".8" fill="none" stroke-linecap="round"/></g><g transform="translate(258.1 108.1) rotate(62.7)"><rect x="-6.6" y="-5.5" width="13.3" height="11.0" rx="4.2" fill="#FFFCF5" stroke="#5A3A38" stroke-width=".9"/><path d="M-2.7 0H2.7" stroke="#B9A79A" stroke-width=".8" fill="none" stroke-linecap="round"/></g><g transform="translate(264.8 124.1) rotate(71.5)"><rect x="-9.5" y="-6.8" width="19.0" height="13.5" rx="5.1" fill="#FFFCF5" stroke="#5A3A38" stroke-width=".9"/><path d="M-4.9 0H4.9M0 -3.2V3.2" stroke="#B9A79A" stroke-width=".8" fill="none" stroke-linecap="round"/></g><g transform="translate(269.5 142.7) rotate(79.6)"><rect x="-8.9" y="-6.5" width="17.7" height="13.0" rx="4.9" fill="#FFFCF5" stroke="#5A3A38" stroke-width=".9"/><path d="M-4.6 0H4.6M0 -3.1V3.1" stroke="#B9A79A" stroke-width=".8" fill="none" stroke-linecap="round"/></g><g transform="translate(271.7 160.0) rotate(86.3)"><rect x="-8.2" y="-6.0" width="16.5" height="12.0" rx="4.6" fill="#FFFCF5" stroke="#5A3A38" stroke-width=".9"/><path d="M-4.3 0H4.3M0 -2.9V2.9" stroke="#B9A79A" stroke-width=".8" fill="none" stroke-linecap="round"/></g><path d="M210 56V66" stroke="#5A3A38" stroke-width="1.1"/><path d="M207 56Q210 60 213 56" fill="none" stroke="#5A3A38" stroke-width=".7"/><path d="M150 224A60 86 0 0 0 270 224" fill="none" stroke="#EE9C98" stroke-width="28" stroke-linecap="round"/><path d="M163 226A47 72 0 0 0 257 226Z" fill="#D98782"/><path d="M196 291q8 5 12 0M212 291q6 5 12 0" fill="none" stroke="#B9625F" stroke-width="1.1" stroke-linecap="round"/><circle cx="205" cy="287" r="1.5" fill="#F3C3BC"/><circle cx="215" cy="287" r="1.5" fill="#F3C3BC"/><path d="M184 262Q210 250 236 262C240 274 228 284 210 285C192 284 180 274 184 262Z" fill="#F4B8B2" stroke="#5A3A38" stroke-width=".9"/><path d="M210 262V292" stroke="#C97873" stroke-width="1.4"/><path d="M200 266q-3 8 2 14M220 266q3 8 -2 14" fill="none" stroke="#9FA6CF" stroke-width="1" opacity=".8"/><path d="M166 232C163 212 190 205 210 205C230 205 257 212 254 232C254 248 246 259 236 262Q210 250 184 262C174 259 166 248 166 232Z" fill="#E98E8E" stroke="#5A3A38" stroke-width="1"/><path d="M210 212V246" stroke="#CF7272" stroke-width="1.2"/><path d="M186 222q4 2 8 0M226 222q4 2 8 0M180 236q4 2 8 0M232 236q4 2 8 0M196 240q4 2 8 0M216 240q4 2 8 0" fill="none" stroke="#D97D7D" stroke-width="1" stroke-linecap="round"/><g transform="translate(150.4 234.1) rotate(85.3)"><rect x="-8.1" y="-6.0" width="16.3" height="12.0" rx="4.6" fill="#FFFCF5" stroke="#5A3A38" stroke-width=".9"/><path d="M-4.2 0H4.2M0 -2.9V2.9" stroke="#B9A79A" stroke-width=".8" fill="none" stroke-linecap="round"/></g><g transform="translate(153.2 251.9) rotate(76.6)"><rect x="-9.1" y="-6.2" width="18.1" height="12.5" rx="4.8" fill="#FFFCF5" stroke="#5A3A38" stroke-width=".9"/><path d="M-4.7 0H4.7M0 -3.0V3.0" stroke="#B9A79A" stroke-width=".8" fill="none" stroke-linecap="round"/></g><g transform="translate(159.3 270.1) rotate(66.1)"><rect x="-9.7" y="-6.2" width="19.4" height="12.5" rx="4.8" fill="#FFFCF5" stroke="#5A3A38" stroke-width=".9"/><path d="M-5.0 0H5.0M0 -3.0V3.0" stroke="#B9A79A" stroke-width=".8" fill="none" stroke-linecap="round"/></g><g transform="translate(167.6 284.8) rotate(55.1)"><rect x="-6.3" y="-5.2" width="12.5" height="10.5" rx="4.0" fill="#FFFCF5" stroke="#5A3A38" stroke-width=".9"/><path d="M-2.5 0H2.5" stroke="#B9A79A" stroke-width=".8" fill="none" stroke-linecap="round"/></g><g transform="translate(176.3 295.1) rotate(44.2)"><rect x="-6.3" y="-5.0" width="12.5" height="10.0" rx="3.8" fill="#FFFCF5" stroke="#5A3A38" stroke-width=".9"/><path d="M-2.5 0H2.5" stroke="#B9A79A" stroke-width=".8" fill="none" stroke-linecap="round"/></g><g transform="translate(186.2 302.9) rotate(31.8)"><rect x="-5.6" y="-4.2" width="11.3" height="8.5" rx="3.2" fill="#FFFCF5" stroke="#5A3A38" stroke-width=".9"/></g><g transform="translate(196.0 307.6) rotate(19.0)"><rect x="-4.7" y="-3.2" width="9.4" height="6.5" rx="2.5" fill="#FFFCF5" stroke="#5A3A38" stroke-width=".9"/></g><g transform="translate(205.3 309.7) rotate(6.4)"><rect x="-4.4" y="-3.2" width="8.8" height="6.5" rx="2.5" fill="#FFFCF5" stroke="#5A3A38" stroke-width=".9"/></g><g transform="translate(215.2 309.7) rotate(-7.1)"><rect x="-4.4" y="-3.2" width="8.8" height="6.5" rx="2.5" fill="#FFFCF5" stroke="#5A3A38" stroke-width=".9"/></g><g transform="translate(224.5 307.5) rotate(-19.6)"><rect x="-4.7" y="-3.2" width="9.4" height="6.5" rx="2.5" fill="#FFFCF5" stroke="#5A3A38" stroke-width=".9"/></g><g transform="translate(234.3 302.7) rotate(-32.4)"><rect x="-5.6" y="-4.2" width="11.3" height="8.5" rx="3.2" fill="#FFFCF5" stroke="#5A3A38" stroke-width=".9"/></g><g transform="translate(244.1 294.7) rotate(-44.7)"><rect x="-6.3" y="-5.0" width="12.5" height="10.0" rx="3.8" fill="#FFFCF5" stroke="#5A3A38" stroke-width=".9"/><path d="M-2.5 0H2.5" stroke="#B9A79A" stroke-width=".8" fill="none" stroke-linecap="round"/></g><g transform="translate(252.8 284.3) rotate(-55.5)"><rect x="-6.3" y="-5.2" width="12.5" height="10.5" rx="4.0" fill="#FFFCF5" stroke="#5A3A38" stroke-width=".9"/><path d="M-2.5 0H2.5" stroke="#B9A79A" stroke-width=".8" fill="none" stroke-linecap="round"/></g><g transform="translate(260.9 269.5) rotate(-66.5)"><rect x="-9.7" y="-6.2" width="19.4" height="12.5" rx="4.8" fill="#FFFCF5" stroke="#5A3A38" stroke-width=".9"/><path d="M-5.0 0H5.0M0 -3.0V3.0" stroke="#B9A79A" stroke-width=".8" fill="none" stroke-linecap="round"/></g><g transform="translate(266.9 251.2) rotate(-76.9)"><rect x="-9.1" y="-6.2" width="18.1" height="12.5" rx="4.8" fill="#FFFCF5" stroke="#5A3A38" stroke-width=".9"/><path d="M-4.7 0H4.7M0 -3.0V3.0" stroke="#B9A79A" stroke-width=".8" fill="none" stroke-linecap="round"/></g><g transform="translate(269.6 233.4) rotate(-85.6)"><rect x="-8.1" y="-6.0" width="16.3" height="12.0" rx="4.6" fill="#FFFCF5" stroke="#5A3A38" stroke-width=".9"/><path d="M-4.2 0H4.2M0 -2.9V2.9" stroke="#B9A79A" stroke-width=".8" fill="none" stroke-linecap="round"/></g><path d="M210 314V323" stroke="#5A3A38" stroke-width="1.1"/>';
 const MOUTH_MAP = {"上唇":[186,50,"L",50],"上牙齦":[150,118,"L",104.0],"硬顎":[196,124,"L",138.0],"右頰側":[133,190,"L",190],"下牙齦":[150,262,"L",262],"軟顎":[226,170,"R",163.0],"左頰側":[287,190,"R",197.0],"舌":[230,232,"R",232],"口底":[224,297,"R",292.0],"下唇":[240,321,"R",326.0]};
 const MOUTH_DOTS = {"右上唇":[147,72],"右上牙齦":[143,128],"右硬顎":[188,120],"右軟顎":[184,172],"右頰黏膜":[133,190],"右臼齒後區":[145,200],"右舌側緣":[170,238],"右舌背":[192,230],"右下牙齦":[145,262],"右側口底":[194,296],"右下唇":[162,311],"上唇繫帶":[210,61],"左上唇":[273,72],"左上牙齦":[277,128],"左硬顎":[232,120],"左軟顎":[236,172],"左頰黏膜":[287,190],"左臼齒後區":[275,200],"左舌側緣":[250,238],"左舌背":[228,230],"左下牙齦":[275,262],"舌繫帶":[210,276],"左側口底":[226,296],"左下唇":[258,311],"下唇繫帶":[210,318],"上唇":[186,50],"上牙齦":[150,118],"硬顎":[196,124],"下牙齦":[150,262],"軟顎":[226,170],"舌":[230,232],"口底":[224,297],"下唇":[240,321]};
-const SOFT_GROUPS = {"上唇":{"whole":"上唇","subs":["右上唇","左上唇","上唇繫帶"]},"下唇":{"whole":"下唇","subs":["右下唇","左下唇","下唇繫帶"]},"上牙齦":{"whole":"上牙齦","subs":["右上牙齦","左上牙齦"]},"下牙齦":{"whole":"下牙齦","subs":["右下牙齦","左下牙齦"]},"硬顎":{"whole":"硬顎","subs":["右硬顎","左硬顎"]},"軟顎":{"whole":"軟顎","subs":["右軟顎","左軟顎"]},"舌":{"whole":"舌","subs":["右舌側緣","左舌側緣","右舌背","左舌背","舌繫帶"]},"口底":{"whole":"口底","subs":["右側口底","左側口底"]},"右頰側":{"whole":null,"subs":["右頰黏膜","右臼齒後區"]},"左頰側":{"whole":null,"subs":["左頰黏膜","左臼齒後區"]},"鼻竇":{"whole":null,"subs":["右鼻竇","左鼻竇"]},"顳顎關節":{"whole":null,"subs":["右顳顎關節","左顳顎關節"]},"腮腺":{"whole":null,"subs":["右腮腺","左腮腺"]},"顎下腺":{"whole":null,"subs":["右顎下腺","左顎下腺"]},"舌下腺":{"whole":null,"subs":["右舌下腺","左舌下腺"]}};
-const SOFT_EXTRA = [["鼻竇・關節","鼻竇"],["鼻竇・關節","顳顎關節"],["唾液腺","腮腺"],["唾液腺","顎下腺"],["唾液腺","舌下腺"]];
+const SOFT_GROUPS = {"上唇":{"whole":"上唇","subs":["右上唇","左上唇","上唇繫帶"]},"下唇":{"whole":"下唇","subs":["右下唇","左下唇","下唇繫帶"]},"上牙齦":{"whole":"上牙齦","subs":["右上牙齦","左上牙齦"]},"下牙齦":{"whole":"下牙齦","subs":["右下牙齦","左下牙齦"]},"硬顎":{"whole":"硬顎","subs":["右硬顎","左硬顎"]},"軟顎":{"whole":"軟顎","subs":["右軟顎","左軟顎"]},"舌":{"whole":"舌","subs":["右舌側緣","左舌側緣","右舌背","左舌背","舌繫帶"]},"口底":{"whole":"口底","subs":["右側口底","左側口底"]},"右頰側":{"whole":null,"subs":["右頰黏膜","右臼齒後區"]},"左頰側":{"whole":null,"subs":["左頰黏膜","左臼齒後區"]},"上顎竇":{"whole":null,"subs":["右上顎竇","左上顎竇"]},"顳顎關節":{"whole":null,"subs":["右顳顎關節","左顳顎關節"]},"腮腺":{"whole":null,"subs":["右腮腺","左腮腺"]},"顎下腺":{"whole":null,"subs":["右顎下腺","左顎下腺"]},"舌下腺":{"whole":null,"subs":["右舌下腺","左舌下腺"]}};
+const SOFT_EXTRA = [["上顎竇・關節","上顎竇"],["上顎竇・關節","顳顎關節"],["唾液腺","腮腺"],["唾液腺","顎下腺"],["唾液腺","舌下腺"]];
 
 /* ── 顏面骨正面與下顎骨全景 ──
    依解剖構造以公釐座標繪製後縮放。*_HIT＝主結構點擊區（滑過輪廓加粗），
@@ -1802,7 +1802,7 @@ function artPick(o) {
        + `<g class="regs">${hit}</g><g class="lds">${lines}${dots}</g></svg>${btns}</div>`;
 }
 
-// 圖外部位（鼻竇、關節、唾液腺）：按鈕＋圓盤選側別
+// 圖外部位（上顎竇、關節、唾液腺）：按鈕＋圓盤選側別
 function extraChips(o, list) {
   const cats = [...new Set(list.map(e => e[0]))];
   return cats.map(c => `<div class="evr xr"><span class="ip-sub">${c}</span><div class="evr-c">` + list.filter(e => e[0] === c).map(([, n]) => {
@@ -2642,7 +2642,7 @@ function setSurgField(key, val) {
   update();
 }
 
-const MAT_LIST = ['膠原蛋白', '骨粉', 'PRF', '再生膜', '人工皮'];
+const MAT_LIST = ['膠原蛋白', '骨粉', 'PRF', '再生膜', '人工皮', '牙釉質蛋白'];
 const MAT_OPTS = MAT_LIST.map(m => [m, m]).concat([['custom', '自訂'], ['none', '無（僅縫合）']]);
 
 // 材料可複選；「無（僅縫合）」與其他材料互斥
